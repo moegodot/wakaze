@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/items/">
+      <File Path="README.md" />
+      <File Path="Directory.Build.props" />
+      <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/managed/">
+    <Project Path="src/managed/Kawayi.Wakaze.Abstractions/Kawayi.Wakaze.Abstractions.csproj" />
+    <Project Path="src/managed/Kawayi.Wakaze.Cas.Abstractions/Kawayi.Wakaze.Cas.Abstractions.csproj" />
+    <Project Path="src/managed/Kawayi.Wakaze.Core/Kawayi.Wakaze.Core.csproj" />
+    <Project Path="src/managed/Kawayi.Wakaze.Digest/Kawayi.Wakaze.Digest.csproj" />
+  </Folder>
+</Solution>
