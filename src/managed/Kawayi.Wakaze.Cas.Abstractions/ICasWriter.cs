@@ -1,6 +1,8 @@
 namespace Kawayi.Wakaze.Cas.Abstractions;
 
-public interface ICasWriter
+public interface ICasWriter : IDisposable
 {
-    ulong Write(Stream stream);
+    ValueTask<PutResult> PutAsync(
+        Stream content,
+        CancellationToken cancellationToken = default);
 }

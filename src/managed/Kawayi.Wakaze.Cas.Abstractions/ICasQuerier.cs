@@ -1,7 +1,12 @@
 namespace Kawayi.Wakaze.Cas.Abstractions;
 
-public interface ICasQuerier
+public interface ICasQuerier : IDisposable
 {
-    bool Exists(BlobId id);
-    ulong GetLength(BlobId id);
+    ValueTask<bool> ExistsAsync(
+        BlobId id,
+        CancellationToken cancellationToken = default);
+
+    ValueTask<BlobStat?> StatAsync(
+        BlobId id,
+        CancellationToken cancellationToken = default);
 }
