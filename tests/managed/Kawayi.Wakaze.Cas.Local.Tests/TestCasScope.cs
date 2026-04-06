@@ -3,7 +3,7 @@ using Kawayi.Wakaze.Cas.Local;
 
 namespace Kawayi.Wakaze.Cas.Local.Tests;
 
-internal sealed class TestCasScope : IDisposable
+internal sealed class TestCasScope : IAsyncDisposable
 {
     public TestCasScope()
     {
@@ -23,24 +23,21 @@ internal sealed class TestCasScope : IDisposable
 
     public string TempRoot => Path.Combine(RootPath, "temp");
 
-    public void Dispose()
+    public static MemoryStream Utf8Stream(string text)
     {
-        Cas.Dispose();
+        return new MemoryStream(Encoding.UTF8.GetBytes(text), false);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await Cas.DisposeAsync();
 
         try
         {
-            if (Directory.Exists(RootPath))
-            {
-                Directory.Delete(RootPath, recursive: true);
-            }
+            if (Directory.Exists(RootPath)) Directory.Delete(RootPath, true);
         }
         catch
         {
         }
-    }
-
-    public static MemoryStream Utf8Stream(string text)
-    {
-        return new MemoryStream(Encoding.UTF8.GetBytes(text), writable: false);
     }
 }

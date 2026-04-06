@@ -3,7 +3,7 @@ namespace Kawayi.Wakaze.Cas.Abstractions;
 /// <summary>
 /// Exposes read-only access to blobs stored in a content-addressed storage system.
 /// </summary>
-public interface ICasReader : ICasQuerier, IDisposable
+public interface ICasReader : ICasQuerier
 {
     /// <summary>
     /// Opens a stream for reading the requested blob range.

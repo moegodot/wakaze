@@ -25,9 +25,14 @@
 
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <RestoreLockedMode>false</RestoreLockedMode>
+    </PropertyGroup>
 
+    <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('.Tests.csproj')) != true">
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
 
+    <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('.Tests.csproj')) == true">
+        <GenerateDocumentationFile>false</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>

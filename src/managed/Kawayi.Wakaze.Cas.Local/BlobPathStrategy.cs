@@ -19,7 +19,7 @@ internal sealed class BlobPathStrategy
 
     public string GetContentPath(BlobId id)
     {
-        var hex = BlobIdHex.Format(id);
+        var hex = id.ToString("R", null);
         return GetContentPath(hex);
     }
 

@@ -28,13 +28,6 @@ public sealed class FileSystemCas : ICas
     }
 
     /// <summary>
-    /// Releases resources associated with the current instance.
-    /// </summary>
-    public void Dispose()
-    {
-    }
-
-    /// <summary>
     /// Determines whether a blob with the specified identifier exists in the local store.
     /// </summary>
     /// <param name="id">The identifier of the blob to check.</param>
@@ -61,10 +54,7 @@ public sealed class FileSystemCas : ICas
         cancellationToken.ThrowIfCancellationRequested();
 
         var path = _paths.GetContentPath(id);
-        if (!File.Exists(path))
-        {
-            return ValueTask.FromResult<BlobStat?>(null);
-        }
+        if (!File.Exists(path)) return ValueTask.FromResult<BlobStat?>(null);
 
         var fileInfo = new FileInfo(path);
         return ValueTask.FromResult<BlobStat?>(new BlobStat(id, checked((ulong)fileInfo.Length)));
@@ -85,16 +75,10 @@ public sealed class FileSystemCas : ICas
         cancellationToken.ThrowIfCancellationRequested();
 
         var path = _paths.GetContentPath(request.Id);
-        if (!File.Exists(path))
-        {
-            throw new FileNotFoundException("The requested blob was not found.", path);
-        }
+        if (!File.Exists(path)) throw new FileNotFoundException("The requested blob was not found.", path);
 
         var stream = OpenReadStream(path);
-        if (request.Range.Kind == BlobRangeKind.Full)
-        {
-            return ValueTask.FromResult<Stream>(stream);
-        }
+        if (request.Range.Kind == BlobRangeKind.Full) return ValueTask.FromResult<Stream>(stream);
 
         try
         {
@@ -126,10 +110,7 @@ public sealed class FileSystemCas : ICas
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
-        if (!content.CanRead)
-        {
-            throw new ArgumentException("The content stream must be readable.", nameof(content));
-        }
+        if (!content.CanRead) throw new ArgumentException("The content stream must be readable.", nameof(content));
 
         await using var tempFile = TempFileLease.Create(_paths.TempRoot);
         await using var tempStream = tempFile.OpenWriteStream();
@@ -143,10 +124,7 @@ public sealed class FileSystemCas : ICas
             while (true)
             {
                 var bytesRead = await content.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
-                if (bytesRead == 0)
-                {
-                    break;
-                }
+                if (bytesRead == 0) break;
 
                 await tempStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
                 hasher.Update(buffer.AsSpan(0, bytesRead));
@@ -165,7 +143,7 @@ public sealed class FileSystemCas : ICas
 
             try
             {
-                File.Move(tempFile.Path, finalPath, overwrite: false);
+                File.Move(tempFile.Path, finalPath, false);
                 tempFile.MarkCommitted();
             }
             catch (IOException) when (File.Exists(finalPath))
@@ -211,5 +189,13 @@ public sealed class FileSystemCas : ICas
         catch
         {
         }
+    }
+
+    /// <summary>
+    /// Releases resources associated with the current instance.
+    /// </summary>
+    public ValueTask DisposeAsync()
+    {
+        return ValueTask.CompletedTask;
     }
 }

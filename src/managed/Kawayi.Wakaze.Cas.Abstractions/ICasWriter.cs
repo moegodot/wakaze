@@ -3,7 +3,7 @@ namespace Kawayi.Wakaze.Cas.Abstractions;
 /// <summary>
 /// Exposes write operations for a content-addressed storage system.
 /// </summary>
-public interface ICasWriter : IDisposable
+public interface ICasWriter
 {
     /// <summary>
     /// Stores the content from the provided stream and returns its identifier.

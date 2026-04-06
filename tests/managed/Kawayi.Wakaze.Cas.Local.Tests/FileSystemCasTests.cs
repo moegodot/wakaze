@@ -8,7 +8,7 @@ public class FileSystemCasTests
     [Test]
     public async Task PutAsync_WritesBlob_AndQueriesSucceed()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
         const string content = "hello local cas";
 
         PutResult putResult;
@@ -21,10 +21,7 @@ public class FileSystemCasTests
         await Assert.That(await scope.Cas.ExistsAsync(putResult.Id)).IsTrue();
 
         var stat = await scope.Cas.StatAsync(putResult.Id);
-        if (stat is null)
-        {
-            throw new Exception("Expected blob stat to exist.");
-        }
+        if (stat is null) throw new Exception("Expected blob stat to exist.");
 
         await Assert.That(stat.Value.Id).IsEqualTo(putResult.Id);
         await Assert.That(stat.Value.Size).IsEqualTo(putResult.Length);
@@ -37,7 +34,7 @@ public class FileSystemCasTests
     [Test]
     public async Task OpenReadAsync_Supports_Slice_And_From_Ranges()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
         const string content = "0123456789abcdef";
 
         PutResult putResult;
@@ -56,7 +53,7 @@ public class FileSystemCasTests
     [Test]
     public async Task MissingBlob_QueriesAndRead_FollowExpectedSemantics()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
         var missingId = CreateBlobId(0xAB);
 
         await Assert.That(await scope.Cas.ExistsAsync(missingId)).IsFalse();
@@ -75,7 +72,7 @@ public class FileSystemCasTests
     [Test]
     public async Task PutAsync_Deduplicates_WhenCalledTwiceWithSameContent()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
         const string content = "same payload for dedupe";
 
         PutResult first;
@@ -100,7 +97,7 @@ public class FileSystemCasTests
     [Test]
     public async Task PutAsync_Deduplicates_UnderConcurrentWriters()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
         const string content = "concurrent content payload";
 
         var tasks = Enumerable.Range(0, 12)
@@ -116,15 +113,9 @@ public class FileSystemCasTests
 
         foreach (var result in results)
         {
-            if (result.Id != first.Id)
-            {
-                throw new Exception("Concurrent puts returned different blob ids.");
-            }
+            if (result.Id != first.Id) throw new Exception("Concurrent puts returned different blob ids.");
 
-            if (result.Length != first.Length)
-            {
-                throw new Exception("Concurrent puts returned different blob lengths.");
-            }
+            if (result.Length != first.Length) throw new Exception("Concurrent puts returned different blob lengths.");
         }
 
         await Assert.That(CountFiles(scope.ContentRoot)).IsEqualTo(1);
@@ -134,7 +125,7 @@ public class FileSystemCasTests
     [Test]
     public async Task PutAsync_DifferentContent_ProducesDifferentBlobIds()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
 
         PutResult first;
         PutResult second;
@@ -149,10 +140,7 @@ public class FileSystemCasTests
             second = await scope.Cas.PutAsync(input);
         }
 
-        if (first.Id == second.Id)
-        {
-            throw new Exception("Different content produced the same blob id.");
-        }
+        if (first.Id == second.Id) throw new Exception("Different content produced the same blob id.");
 
         await Assert.That(CountFiles(scope.ContentRoot)).IsEqualTo(2);
     }
@@ -160,7 +148,7 @@ public class FileSystemCasTests
     [Test]
     public async Task PutAsync_StoresBlobAtDigestDerivedPath()
     {
-        using var scope = new TestCasScope();
+        await using var scope = new TestCasScope();
 
         PutResult result;
         using (var input = TestCasScope.Utf8Stream("path-check"))
@@ -168,7 +156,7 @@ public class FileSystemCasTests
             result = await scope.Cas.PutAsync(input);
         }
 
-        var hex = FormatHex(result.Id);
+        var hex = result.Id.ToString("R", null);
         var expectedPath = Path.Combine(scope.ContentRoot, hex[..2], hex[2..4], hex);
 
         await Assert.That(File.Exists(expectedPath)).IsTrue();
@@ -179,32 +167,9 @@ public class FileSystemCasTests
         Kawayi.Wakaze.Digest.Blake3 digest = default;
         Span<byte> bytes = digest;
 
-        for (var i = 0; i < bytes.Length; i++)
-        {
-            bytes[i] = seed;
-        }
+        for (var i = 0; i < bytes.Length; i++) bytes[i] = seed;
 
         return new BlobId(digest);
-    }
-
-    private static string FormatHex(BlobId id)
-    {
-        return string.Create(64, id.Blake3, static (chars, digest) =>
-        {
-            ReadOnlySpan<byte> innerBytes = digest;
-
-            for (var i = 0; i < innerBytes.Length; i++)
-            {
-                var b = innerBytes[i];
-                chars[i * 2] = ToHexChar(b >> 4);
-                chars[i * 2 + 1] = ToHexChar(b & 0xF);
-            }
-        });
-    }
-
-    private static char ToHexChar(int value)
-    {
-        return (char)(value < 10 ? '0' + value : 'a' + (value - 10));
     }
 
     private static int CountEntries(string path)

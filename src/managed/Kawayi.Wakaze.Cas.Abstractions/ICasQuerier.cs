@@ -3,7 +3,7 @@ namespace Kawayi.Wakaze.Cas.Abstractions;
 /// <summary>
 /// Exposes blob existence and metadata queries for a content-addressed storage system.
 /// </summary>
-public interface ICasQuerier : IDisposable
+public interface ICasQuerier
 {
     /// <summary>
     /// Determines whether a blob with the specified identifier exists.

@@ -1,15 +1,25 @@
-#!/usr/local/share/dotnet/dotnet
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Serilog;
 
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] forwardedArguments)
 {
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
     var scriptPath = GetScriptPath();
-    var managedTestsDirectory = Path.GetDirectoryName(scriptPath)
-        ?? throw new InvalidOperationException("Unable to resolve the managed tests directory.");
-    var repositoryRoot = Path.GetFullPath(Path.Combine(managedTestsDirectory, "..", ".."));
+    var repositoryRoot = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the repository root.");
+    var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests", "managed"));
 
     var testProjects = Directory
         .EnumerateFiles(managedTestsDirectory, "*.Tests.csproj", SearchOption.AllDirectories)
@@ -18,7 +28,7 @@ static async Task<int> RunAsync(string[] forwardedArguments)
 
     if (testProjects.Length == 0)
     {
-        Console.Error.WriteLine($"No test projects matching '*.Tests.csproj' were found under '{managedTestsDirectory}'.");
+        Log.Error($"No test projects matching '*.Tests.csproj' were found under '{managedTestsDirectory}'.");
         return 1;
     }
 
@@ -28,12 +38,12 @@ static async Task<int> RunAsync(string[] forwardedArguments)
     foreach (var testProject in testProjects)
     {
         var displayPath = Path.GetRelativePath(repositoryRoot, testProject);
-        Console.WriteLine($"==> Running {displayPath}");
+        Log.Information($"==> Running {displayPath}");
 
         using var process = CreateProcess(testProject, repositoryRoot, forwardedArguments);
         if (!process.Start())
         {
-            Console.Error.WriteLine($"Failed to start test project '{displayPath}'.");
+            Log.Error($"Failed to start test project '{displayPath}'.");
             failedProjects.Add(displayPath);
             continue;
         }
@@ -42,30 +52,29 @@ static async Task<int> RunAsync(string[] forwardedArguments)
 
         if (process.ExitCode == 0)
         {
-            Console.WriteLine($"<== Passed {displayPath}");
+            Log.Information($"<== Passed {displayPath}");
             continue;
         }
 
         if (hasTestSelectionArguments && process.ExitCode == 8)
         {
-            Console.WriteLine($"<== Skipped {displayPath} (no matching tests)");
+            Log.Information($"<== Skipped {displayPath} (no matching tests)");
             continue;
         }
 
-        Console.Error.WriteLine($"<== Failed {displayPath} (exit code {process.ExitCode})");
+        Log.Error($"<== Failed {displayPath} (exit code {process.ExitCode})");
         failedProjects.Add(displayPath);
     }
 
-    Console.WriteLine();
-    Console.WriteLine($"Executed {testProjects.Length} test project(s).");
+    Log.Information($"Executed {testProjects.Length} test project(s).");
 
     if (failedProjects.Count == 0)
     {
-        Console.WriteLine("All managed test projects passed.");
+        Log.Information("All managed test projects passed.");
         return 0;
     }
 
-    Console.Error.WriteLine($"Managed test projects failed: {string.Join(", ", failedProjects)}");
+    Log.Error($"Managed test projects failed: {string.Join(", ", failedProjects)}");
     return 1;
 }
 
@@ -75,6 +84,7 @@ static Process CreateProcess(string testProject, string workingDirectory, IEnume
     {
         WorkingDirectory = workingDirectory,
         UseShellExecute = false,
+        CreateNoWindow = true,
     };
 
     startInfo.ArgumentList.Add("run");
