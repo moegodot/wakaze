@@ -4,6 +4,9 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>true</ImplicitUsings>
 
+        <PackageProjectUrl>https://github.com/moegodot/wakaze</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/moegodot/wakaze</RepositoryUrl>
+
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <IncludeSymbols>true</IncludeSymbols>
@@ -19,20 +22,28 @@
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
 
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
         <MinVerTagPrefix>v</MinVerTagPrefix>
         <MinVerMinimumMajorMinor>0.1</MinVerMinimumMajorMinor>
         <MinVerDefaultPreReleaseIdentifiers>snapshot.0</MinVerDefaultPreReleaseIdentifiers>
 
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-        <RestoreLockedMode>false</RestoreLockedMode>
+        <RestoreLockedMode>true</RestoreLockedMode>
     </PropertyGroup>
 
-    <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('.Tests.csproj')) != true">
+    <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' != 'true'">
+        <IsPackable>true</IsPackable>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <OutputType Condition="'$(MSBuildProjectName.EndsWith(`.Cli`))' != 'true'">Library</OutputType>
+        <OutputType Condition="'$(MSBuildProjectName.EndsWith(`.Cli`))' == 'true'">Exe</OutputType>
     </PropertyGroup>
 
-    <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('.Tests.csproj')) == true">
+    <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' == 'true'">
+        <IsPackable>false</IsPackable>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>
+        <OutputType>Exe</OutputType>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
@@ -44,5 +55,6 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
         </PackageReference>
 
+        <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All"/>
     </ItemGroup>
 </Project>

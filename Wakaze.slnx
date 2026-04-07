@@ -4,13 +4,20 @@
         <File Path="AGENTS.md"/>
         <File Path="Directory.Build.props"/>
         <File Path="Directory.Packages.props"/>
-        <File Path="runManagedTests"/>
+        <File Path="scripts/runManagedTests"/>
+    </Folder>
+    <Folder Name="/eng/"/>
+    <Folder Name="/eng/scripts/">
+        <File Path="eng\scripts\Directory.Build.props"/>
+        <File Path="eng\scripts\Directory.Packages.props"/>
+        <File Path="eng\scripts\runManagedTests"/>
     </Folder>
     <Folder Name="/src/"/>
     <Folder Name="/src/managed/">
         <Project Path="src/managed/Kawayi.Wakaze.Abstractions/Kawayi.Wakaze.Abstractions.csproj"/>
         <Project Path="src/managed/Kawayi.Wakaze.Cas.Abstractions/Kawayi.Wakaze.Cas.Abstractions.csproj"/>
         <Project Path="src/managed/Kawayi.Wakaze.Cas.Local/Kawayi.Wakaze.Cas.Local.csproj"/>
+        <Project Path="src/managed/Kawayi.Wakaze.Cli/Kawayi.Wakaze.Cli.csproj"/>
         <Project Path="src/managed/Kawayi.Wakaze.Core/Kawayi.Wakaze.Core.csproj"/>
         <Project Path="src/managed/Kawayi.Wakaze.Digest/Kawayi.Wakaze.Digest.csproj"/>
     </Folder>

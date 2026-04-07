@@ -7,9 +7,6 @@
         <PackageVersion Include="MinVer" Version="7.0.0"/>
         <PackageVersion Include="Blake3" Version="2.2.1"/>
         <PackageVersion Include="TUnit" Version="1.28.0"/>
-        <!-- the serilog is only provided for the file based script -->
-        <!-- 我他妈怎么这么聪明 -->
-        <PackageVersion Condition="$(MSBuildProjectExtension) == '.csproj'" Include="Serilog" Version="4.3.1"/>
-        <PackageVersion Condition="$(MSBuildProjectExtension) == '.csproj'" Include="Serilog.Sinks.Console" Version="6.1.1"/>
+        <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.201"/>
     </ItemGroup>
 </Project>

@@ -17,8 +17,8 @@ static async Task<int> RunAsync(string[] forwardedArguments)
     Log.Logger = log;
 
     var scriptPath = GetScriptPath();
-    var repositoryRoot = Path.GetDirectoryName(scriptPath)
-        ?? throw new InvalidOperationException("Unable to resolve the repository root.");
+    var repositoryRoot = Path.Combine(Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the repository root."), "..", "..");
     var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests", "managed"));
 
     var testProjects = Directory
