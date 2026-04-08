@@ -26,10 +26,12 @@
         <Project Path="src/managed/Kawayi.Wakaze.Core/Kawayi.Wakaze.Core.csproj"/>
         <Project Path="src/managed/Kawayi.Wakaze.Digest/Kawayi.Wakaze.Digest.csproj"/>
         <Project Path="src/managed/Kawayi.Wakaze.Entity.Abstractions/Kawayi.Wakaze.Entity.Abstractions.csproj"/>
+        <Project Path="src/managed/Kawayi.Wakaze.Entity.Sqlite/Kawayi.Wakaze.Entity.Sqlite.csproj"/>
     </Folder>
     <Folder Name="/tests/"/>
     <Folder Name="/tests/managed/">
         <Project Path="tests/managed/Kawayi.Wakaze.Cas.Local.Tests/Kawayi.Wakaze.Cas.Local.Tests.csproj"/>
         <Project Path="tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj"/>
+        <Project Path="tests/managed/Kawayi.Wakaze.Entity.Sqlite.Tests/Kawayi.Wakaze.Entity.Sqlite.Tests.csproj"/>
     </Folder>
 </Solution>

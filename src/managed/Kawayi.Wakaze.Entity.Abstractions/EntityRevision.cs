@@ -1,4 +1,3 @@
-
 namespace Kawayi.Wakaze.Entity.Abstractions;
 
 /// <summary>
@@ -13,14 +12,14 @@ public readonly struct EntityRevision : IEquatable<EntityRevision>
     private readonly Revision _revision;
     private readonly EntityId _entityId;
 
-    internal EntityRevision(EntityId entityId, Revision revision)
+    public EntityRevision(EntityId entityId, Revision revision)
     {
         _entityId = entityId;
         _revision = revision;
     }
 
-    internal Revision Revision => _revision;
-    internal EntityId EntityId => _entityId;
+    public Revision Revision => _revision;
+    public EntityId EntityId => _entityId;
 
     /// <summary>
     /// Determines whether the current revision token is equal to another revision token.

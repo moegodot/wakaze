@@ -11,7 +11,7 @@ namespace Kawayi.Wakaze.Cas.Abstractions;
 /// <see cref="Digest.Blake3.ToString(string?, IFormatProvider?)"/>, for example
 /// <c>id.ToString("RX", null)</c>.
 /// </remarks>
-public readonly struct BlobId : IEquatable<BlobId>, ISpanFormattable, IUtf8SpanFormattable, IParsable<BlobId>,
+public readonly struct BlobId : IEquatable<BlobId>, IComparable<BlobId>, ISpanFormattable, IUtf8SpanFormattable, IParsable<BlobId>,
     IUtf8SpanParsable<BlobId>
 {
     private const int DigestHexLength = 64;
@@ -62,6 +62,24 @@ public readonly struct BlobId : IEquatable<BlobId>, ISpanFormattable, IUtf8SpanF
     public override int GetHashCode()
     {
         return Blake3.GetHashCode();
+    }
+
+    /// <summary>
+    /// Compares the current blob identifier with another identifier.
+    /// </summary>
+    /// <param name="other">The other blob identifier to compare with.</param>
+    /// <returns>
+    /// A value less than zero when the current identifier precedes <paramref name="other"/>,
+    /// zero when they are equal,
+    /// and a value greater than zero when the current identifier follows <paramref name="other"/>.
+    /// </returns>
+    public int CompareTo(BlobId other)
+    {
+        var leftDigest = Blake3;
+        var rightDigest = other.Blake3;
+        ReadOnlySpan<byte> left = leftDigest;
+        ReadOnlySpan<byte> right = rightDigest;
+        return left.SequenceCompareTo(right);
     }
 
     /// <summary>
