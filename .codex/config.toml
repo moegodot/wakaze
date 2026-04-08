@@ -8,8 +8,8 @@ web_search = "live"
 
 profile = "designer"
 
-approval_policy = "never"
-sandbox_mode = "read-only"
+approval_policy = "untrusted"
+sandbox_mode = "workspace-write"
 model_reasoning_effort = "high"
 model_reasoning_summary = "concise"
 
@@ -23,12 +23,12 @@ project_root_markers = [
   "pyproject.toml",
   "*.sln",
   "*.slnx",
+  "wakaze.root"
 ]
 
 project_doc_fallback_filenames = [
-  "README.codex.md",
-  "README.agent.md",
-  "CLAUDE.md",
+    "AGENTS.TESTING.md",
+    "AGENTS.ENG.md"
 ]
 
 project_doc_max_bytes = 65536

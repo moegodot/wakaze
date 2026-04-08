@@ -16,7 +16,8 @@
 当前仓库已经落地的核心内容主要集中在以下几个模块：
 
 - `src/managed/Kawayi.Wakaze.Digest` 提供 `Blake3` 摘要值类型与其值语义
-- `src/managed/Kawayi.Wakaze.Cas.Abstractions` 提供 CAS 相关公共契约，包括 `BlobId`、`BlobRange`、`ReadRequest`、`PutResult`、`BlobStat` 以及 `ICas*` 接口
+- `src/managed/Kawayi.Wakaze.Cas.Abstractions` 提供 CAS 相关公共契约，包括 `BlobId`、`BlobRange`、`ReadRequest`、
+  `PutResult`、`BlobStat` 以及 `ICas*` 接口
 - `src/managed/Kawayi.Wakaze.Cas.Local` 提供基于本地文件系统的 CAS 实现，包括 blob 路径策略、临时文件写入与范围读取支持
 - `tests/managed/Kawayi.Wakaze.Digest.Tests` 覆盖摘要值类型的基本行为
 - `tests/managed/Kawayi.Wakaze.Cas.Local.Tests` 覆盖本地 CAS 的写入、去重、并发写入、范围读取与缺失对象语义
@@ -70,56 +71,8 @@
 
 ## 测试指南
 
-本仓库测试使用 TUnit，并通过 Microsoft Testing Platform 运行。在命令行场景下，优先使用 `dotnet run --project ... --`，并将测试程序参数放在 `--` 之后。若要一次运行 `tests/managed` 下的全部测试项目，可使用 `tests/managed/RunManagedTests.cs` 这个 file-based C# 入口。
-
-当前测试项目：
-
-- `tests/managed/Kawayi.Wakaze.Digest.Tests`
-- `tests/managed/Kawayi.Wakaze.Cas.Local.Tests`
-
-修改代码时：
-
-- 在最接近变更模块的测试项目中补充或更新测试
-- 除非任务跨越多个模块，否则优先运行相关测试项目，而不是无差别跑全量
-- 对行为语义的修改，必须同步更新或新增测试
-
-常用命令：
-
-- `dotnet run --project tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj --`
-- `dotnet run --project tests/managed/Kawayi.Wakaze.Cas.Local.Tests/Kawayi.Wakaze.Cas.Local.Tests.csproj --`
-- `dotnet run --file tests/managed/RunManagedTests.cs --`
-- `dotnet run --file tests/managed/RunManagedTests.cs -- --treenode-filter "/*/*/Blake3Tests/*"`
-
-过滤建议：
-
-- 需要筛选测试时，优先使用 TUnit 的 `--treenode-filter`
-- 命令行场景下，优先使用 `dotnet run`，不要默认写成 `dotnet test`
-- 使用 `dotnet run` 时，测试程序参数必须放在 `--` 之后
-- 不要默认使用旧式 VSTest `--filter` 语法来筛选 TUnit 树节点
-- 树节点筛选语法为 `/<Assembly>/<Namespace>/<Class name>/<Test name>`
-- 支持 `*` 通配符
-- 支持 `=` 精确匹配
-- 支持 `!=` 取反
-- `&` 表示 AND
-- `|` 表示 OR，但必须用括号包裹
-- 支持属性筛选，例如 `/*/*/*/*[Category=Value]`
-- 不要在本仓库的推荐模板中加入 `-nologo` 之类会被测试可执行程序识别为未知选项的旧式参数
-- 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/ClassName/*"`
-- 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/*/TestName"`
-- 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "(/*/*/ClassA/*)|(/*/*/ClassB/*)"`
-- 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/*/*[Category=Value]"`
-- 即使不加筛选，也优先使用 `dotnet run --project ... --` 这一形式
-- 需要聚合运行 `tests/managed` 下所有测试项目时，使用 `dotnet run --file tests/managed/RunManagedTests.cs --`
-- 聚合入口会自动发现 `tests/managed` 下的 `*.Tests.csproj`，并将 `--` 之后的参数原样透传给每个测试项目
-- 使用 `--treenode-filter` 或 `--filter-uid` 时，未命中的测试项目会按跳过处理，而不是把整个聚合运行标记为失败
-
-已验证的当前环境状态：
-
-- `dotnet run --project tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj -- --help` 可正常进入 TUnit 测试程序
-- `Kawayi.Wakaze.Digest.Tests` 可通过
-- `Kawayi.Wakaze.Cas.Local.Tests` 可通过
-
-不要手动编辑 `TestResults/` 下的生成文件。
+测试相关约定、命令模板与筛选规则已拆分到 `AGENTS.TESTING.md`。涉及测试框架、测试运行方式、`--treenode-filter`
+用法、聚合运行入口与当前已验证环境状态时，以 `AGENTS.TESTING.md` 为准。
 
 ## 语言策略
 
@@ -148,6 +101,11 @@
 
 ## 当出现权衡时
 
-当“当前最小可用实现”与“面向遥远未来的预留设计”之间出现张力时，优先选择当前仓库已经证明需要的最小清晰方案。
+当“当前最小可用实现”与“面向遥远未来的预留设计”之间出现张力时，优先选择面向遥远未来的预留设计。
 
 当“本地实现细节”与“抽象层公共语义”之间出现张力时，优先把细节留在实现层，把公共边界保持干净。
+
+## 工具指南
+
+`AGENTS.ENG.md`中枚举出了工程脚本和使用说明。在功能重合的时候，优先运行脚本而非自己运行命令。
+

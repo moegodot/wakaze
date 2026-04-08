@@ -1,5 +1,6 @@
 using System.Text;
 using Kawayi.Wakaze.Cas.Abstractions;
+using Kawayi.Wakaze.Cas.Abstractions.Admin;
 
 namespace Kawayi.Wakaze.Cas.Local.Tests;
 
@@ -162,6 +163,83 @@ public class FileSystemCasTests
         await Assert.That(File.Exists(expectedPath)).IsTrue();
     }
 
+    [Test]
+    public async Task TryDeleteAsync_ReturnsFalse_ForMissingBlob()
+    {
+        await using var scope = new TestCasScope();
+        var admin = (ICasAdmin)scope.Cas;
+        var missingId = CreateBlobId(0xCD);
+
+        await Assert.That(await admin.TryDeleteAsync(missingId)).IsFalse();
+    }
+
+    [Test]
+    public async Task TryDeleteAsync_RemovesExistingBlob()
+    {
+        await using var scope = new TestCasScope();
+        var admin = (ICasAdmin)scope.Cas;
+
+        PutResult putResult;
+        using (var input = TestCasScope.Utf8Stream("delete me"))
+        {
+            putResult = await scope.Cas.PutAsync(input);
+        }
+
+        await Assert.That(await admin.TryDeleteAsync(putResult.Id)).IsTrue();
+        await Assert.That(await scope.Cas.ExistsAsync(putResult.Id)).IsFalse();
+        await Assert.That(await scope.Cas.StatAsync(putResult.Id)).IsNull();
+    }
+
+    [Test]
+    public async Task ScanBlobIdsAsync_ReturnsStoredBlobIds()
+    {
+        await using var scope = new TestCasScope();
+        var admin = (ICasAdmin)scope.Cas;
+
+        var expected = new HashSet<BlobId>();
+        foreach (var content in new[] { "scan-alpha", "scan-beta", "scan-gamma" })
+        {
+            using var input = TestCasScope.Utf8Stream(content);
+            var result = await scope.Cas.PutAsync(input);
+            expected.Add(result.Id);
+        }
+
+        var scanned = await CollectAsync(admin.ScanBlobIdsAsync());
+        if (!scanned.SetEquals(expected))
+        {
+            throw new Exception("Scanned blob ids did not match the stored blob ids.");
+        }
+    }
+
+    [Test]
+    public async Task ScanBlobIdsAsync_IgnoresTempFilesAndMalformedEntries()
+    {
+        await using var scope = new TestCasScope();
+        var admin = (ICasAdmin)scope.Cas;
+
+        PutResult putResult;
+        using (var input = TestCasScope.Utf8Stream("scan-only-real-blob"))
+        {
+            putResult = await scope.Cas.PutAsync(input);
+        }
+
+        Directory.CreateDirectory(scope.TempRoot);
+        await File.WriteAllTextAsync(Path.Combine(scope.TempRoot, "orphan.tmp"), "temp");
+
+        Directory.CreateDirectory(Path.Combine(scope.ContentRoot, "zz", "yy"));
+        await File.WriteAllTextAsync(Path.Combine(scope.ContentRoot, "zz", "yy", "not-a-digest"), "bad");
+
+        var wrongShardName = new string('a', 64);
+        Directory.CreateDirectory(Path.Combine(scope.ContentRoot, "ff", "ee"));
+        await File.WriteAllTextAsync(Path.Combine(scope.ContentRoot, "ff", "ee", wrongShardName), "bad");
+
+        var scanned = await CollectAsync(admin.ScanBlobIdsAsync());
+        if (!scanned.SetEquals([putResult.Id]))
+        {
+            throw new Exception("Scan returned blob ids for temp files or malformed entries.");
+        }
+    }
+
     private static BlobId CreateBlobId(byte seed)
     {
         Kawayi.Wakaze.Digest.Blake3 digest = default;
@@ -184,6 +262,18 @@ public class FileSystemCasTests
         return Directory.Exists(path)
             ? Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories).Count()
             : 0;
+    }
+
+    private static async Task<HashSet<BlobId>> CollectAsync(IAsyncEnumerable<BlobId> source)
+    {
+        var result = new HashSet<BlobId>();
+
+        await foreach (var item in source)
+        {
+            result.Add(item);
+        }
+
+        return result;
     }
 
     private static async Task<string> ReadAllTextAsync(Stream stream)

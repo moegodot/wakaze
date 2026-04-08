@@ -1,6 +1,8 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using Blake3Net = Blake3;
 using Kawayi.Wakaze.Cas.Abstractions;
+using Kawayi.Wakaze.Cas.Abstractions.Admin;
 
 namespace Kawayi.Wakaze.Cas.Local;
 
@@ -10,7 +12,7 @@ namespace Kawayi.Wakaze.Cas.Local;
 /// <remarks>
 /// Blob content is addressed by its BLAKE3 digest and persisted beneath the configured root path.
 /// </remarks>
-public sealed class FileSystemCas : ICas
+public sealed class FileSystemCas : ICas, ICasAdmin
 {
     private const int CopyBufferSize = 64 * 1024;
 
@@ -161,12 +163,87 @@ public sealed class FileSystemCas : ICas
         }
     }
 
+    /// <summary>
+    /// Attempts to delete a blob from the local store.
+    /// </summary>
+    /// <param name="id">The identifier of the blob to delete.</param>
+    /// <param name="cancellationToken">A token that cancels the operation.</param>
+    /// <returns>A value that resolves to <see langword="true"/> when the blob existed and was deleted; otherwise, <see langword="false"/>.</returns>
+    public ValueTask<bool> TryDeleteAsync(
+        BlobId id,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var path = _paths.GetContentPath(id);
+        if (!File.Exists(path)) return ValueTask.FromResult(false);
+
+        try
+        {
+            File.Delete(path);
+            return ValueTask.FromResult(true);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return ValueTask.FromResult(false);
+        }
+    }
+
+    /// <summary>
+    /// Enumerates blob identifiers currently stored in the local store.
+    /// </summary>
+    /// <param name="cancellationToken">A token that cancels the enumeration.</param>
+    /// <returns>An asynchronous sequence of blob identifiers currently present in the local store.</returns>
+    public async IAsyncEnumerable<BlobId> ScanBlobIdsAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(_paths.ContentRoot)) yield break;
+
+        foreach (var path in Directory.EnumerateFiles(_paths.ContentRoot, "*", SearchOption.AllDirectories))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!TryParseCanonicalBlobId(path, out var id)) continue;
+
+            yield return id;
+        }
+    }
+
     private static BlobId CreateBlobId(ReadOnlySpan<byte> hashBytes)
     {
         Kawayi.Wakaze.Digest.Blake3 digest = default;
         Span<byte> destination = digest;
         hashBytes.CopyTo(destination);
         return new BlobId(digest);
+    }
+
+    private bool TryParseCanonicalBlobId(string path, out BlobId id)
+    {
+        var relativePath = Path.GetRelativePath(_paths.ContentRoot, path);
+        if (relativePath == ".")
+        {
+            id = default;
+            return false;
+        }
+
+        var pathSegments = relativePath.Split(
+            new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+            StringSplitOptions.RemoveEmptyEntries);
+
+        if (pathSegments.Length != 3
+            || pathSegments[0].Length != 2
+            || pathSegments[1].Length != 2
+            || pathSegments[2].Length != 64
+            || !Kawayi.Wakaze.Digest.Blake3.TryParse(pathSegments[2], null, out var digest)
+            || !pathSegments[2].StartsWith(pathSegments[0], StringComparison.OrdinalIgnoreCase)
+            || !pathSegments[2].AsSpan(2, 2).Equals(pathSegments[1], StringComparison.OrdinalIgnoreCase))
+        {
+            id = default;
+            return false;
+        }
+
+        id = new BlobId(digest);
+        return true;
     }
 
     private static FileStream OpenReadStream(string path)
