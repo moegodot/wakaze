@@ -8,8 +8,9 @@ web_search = "live"
 
 profile = "designer"
 
-approval_policy = "untrusted"
-sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+sandbox_mode = "danger-full-access"
+
 model_reasoning_effort = "high"
 model_reasoning_summary = "concise"
 

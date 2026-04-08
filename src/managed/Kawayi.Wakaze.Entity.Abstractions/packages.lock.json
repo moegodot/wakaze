@@ -37,8 +37,23 @@
         "resolved": "10.0.5",
         "contentHash": "8IBJWcCT9+e4Bmevm4T7+fQEiAh133KGiz4oiVTgJckd3Q76OFdR1falgn9lpz7+C4HJvogCDJeAa2QmvbeVtg=="
       },
-      "kawayi.wakaze.abstractions": {
-        "type": "Project"
+      "kawayi.wakaze.cas.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "Kawayi.Wakaze.Digest": "[1.0.0, )"
+        }
+      },
+      "kawayi.wakaze.digest": {
+        "type": "Project",
+        "dependencies": {
+          "Blake3": "[2.2.1, )"
+        }
+      },
+      "Blake3": {
+        "type": "CentralTransitive",
+        "requested": "[2.2.1, )",
+        "resolved": "2.2.1",
+        "contentHash": "HfNW2Iiy4hCaVDVGFEyk0mks+M5HSU3O8O517LyYkI6FFuj2jpvNlag4kGQFDSRmJi4/axgOei8k02NKq/uoDg=="
       }
     }
   }
