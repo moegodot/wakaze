@@ -17,8 +17,7 @@ static async Task<int> RunAsync(string[] forwardedArguments)
     Log.Logger = log;
 
     var scriptPath = GetScriptPath();
-    var repositoryRoot = Path.Combine(Path.GetDirectoryName(scriptPath)
-        ?? throw new InvalidOperationException("Unable to resolve the repository root."), "..", "..");
+    var repositoryRoot = GetRepositoryRoot(scriptPath);
     var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests", "managed"));
 
     var testProjects = Directory
@@ -106,6 +105,28 @@ static Process CreateProcess(string testProject, string workingDirectory, IEnume
 static string GetScriptPath([CallerFilePath] string path = "")
 {
     return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
 }
 
 static bool HasTestSelectionArguments(IEnumerable<string> forwardedArguments)

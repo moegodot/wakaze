@@ -1,18 +1,28 @@
-using System.Collections;
+using System.Collections.Immutable;
 
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Entity.Abstractions;
 
+/// <summary>
+/// Present a readonly Entity in the system.
+/// Built on the Blob,the Entity can holds Blob references and Entity references.
+/// </summary>
 public sealed class Entity : IEquatable<Entity>
 {
     public EntityId Id { get; }
 
-    public List<EntityRef> Refs { get; }
+    public ImmutableArray<EntityRef> Refs { get; }
+
+    public Entity(EntityId id, ImmutableArray<EntityRef> refs)
+    {
+        Id = id;
+        Refs = refs.Sort();
+    }
 
     public bool Equals(Entity? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Id.Equals(other.Id);
+        return Id.Equals(other.Id) && Refs.SequenceEqual(other.Refs);
     }
 
     public override bool Equals(object? obj)
@@ -22,7 +32,13 @@ public sealed class Entity : IEquatable<Entity>
 
     public override int GetHashCode()
     {
-        return Id.GetHashCode();
+        var hash = new HashCode();
+        foreach (var item in Refs)
+        {
+            hash.Add(item);
+        }
+        hash.Add(Id);
+        return hash.ToHashCode();
     }
 
     public static bool operator ==(Entity? left, Entity? right)

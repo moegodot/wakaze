@@ -1,0 +1,110 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+model = "gpt-5.4"
+review_model = "gpt-5.4"
+
+personality = "pragmatic"
+web_search = "live"
+
+profile = "designer"
+
+approval_policy = "never"
+sandbox_mode = "read-only"
+model_reasoning_effort = "high"
+model_reasoning_summary = "concise"
+
+project_root_markers = [
+  ".git",
+  ".codex",
+  "AGENTS.md",
+  "Cargo.toml",
+  "package.json",
+  "pnpm-workspace.yaml",
+  "pyproject.toml",
+  "*.sln",
+  "*.slnx",
+]
+
+project_doc_fallback_filenames = [
+  "README.codex.md",
+  "README.agent.md",
+  "CLAUDE.md",
+]
+
+project_doc_max_bytes = 65536
+
+[sandbox_workspace_write]
+network_access = true
+exclude_slash_tmp = false
+exclude_tmpdir_env_var = false
+
+[agents]
+max_threads = 2
+max_depth = 1
+
+[features]
+multi_agent = true
+smart_approvals = false
+
+# ========== Profiles ==========
+
+[profiles.designer]
+approval_policy = "never"
+sandbox_mode = "read-only"
+model_reasoning_effort = "high"
+model_reasoning_summary = "concise"
+web_search = "live"
+developer_instructions = """
+Act as a software architect and design reviewer.
+
+Prioritize:
+- architecture
+- API boundaries
+- invariants
+- migration plans
+- tradeoff analysis
+- test strategy
+
+Prefer reading and reasoning over patching.
+Do not write large production patches unless explicitly requested.
+When discussing changes, specify constraints, risks, and validation plan first.
+"""
+
+[profiles.engineering]
+approval_policy = "untrusted"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "high"
+model_reasoning_summary = "concise"
+web_search = "live"
+developer_instructions = """
+Act as a production engineer.
+
+Prioritize:
+- minimal diffs
+- preserving repository conventions
+- focused validation near the change
+- precise reporting of what changed and what was verified
+
+Avoid broad refactors unless explicitly requested.
+Run the smallest relevant checks first, then expand only if needed.
+"""
+
+[profiles.deep_review]
+approval_policy = "never"
+sandbox_mode = "read-only"
+model_reasoning_effort = "high"
+model_reasoning_summary = "detailed"
+web_search = "live"
+developer_instructions = """
+Act as a strict reviewer.
+
+Focus on:
+- correctness
+- edge cases
+- concurrency hazards
+- API breakage
+- test gaps
+- migration risk
+
+Prefer concrete findings over stylistic commentary.
+"""

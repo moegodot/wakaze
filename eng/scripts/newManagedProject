@@ -1,0 +1,661 @@
+#!/usr/bin/env dotnet
+
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    var scriptPath = GetScriptPath();
+    var repositoryRoot = GetRepositoryRoot(scriptPath);
+    var solutionPath = Path.Combine(repositoryRoot, "Wakaze.slnx");
+
+    try
+    {
+        var options = ParseArguments(args);
+        if (options.ShowHelp)
+        {
+            PrintHelp(Console.Out);
+            return 0;
+        }
+
+        ValidateOptions(options);
+
+        var layout = ProjectLayout.Create(repositoryRoot, options);
+        EnsureNoConflicts(layout, solutionPath);
+
+        await ScaffoldAsync(layout, repositoryRoot, solutionPath);
+
+        Console.WriteLine($"Created {layout.ProjectName}.");
+        Console.WriteLine($"  Source project: {Path.GetRelativePath(repositoryRoot, layout.SourceProjectPath)}");
+
+        if (layout.WithTests)
+        {
+            Console.WriteLine($"  Test project:   {Path.GetRelativePath(repositoryRoot, layout.TestProjectPath!)}");
+        }
+
+        return 0;
+    }
+    catch (UsageException ex)
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        Console.Error.WriteLine();
+        PrintHelp(Console.Error);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        return 1;
+    }
+}
+
+static ScriptOptions ParseArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        throw new UsageException("Missing required arguments.");
+    }
+
+    string? name = null;
+    string? kindText = null;
+    string? withTestsText = null;
+    var showHelp = false;
+
+    for (var index = 0; index < args.Count; index++)
+    {
+        var argument = args[index];
+
+        if (string.Equals(argument, "--help", StringComparison.Ordinal))
+        {
+            showHelp = true;
+            continue;
+        }
+
+        if (!argument.StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new UsageException($"Unexpected positional argument '{argument}'.");
+        }
+
+        if (index + 1 >= args.Count)
+        {
+            throw new UsageException($"Option '{argument}' requires a value.");
+        }
+
+        var value = args[++index];
+        if (value.StartsWith("--", StringComparison.Ordinal))
+        {
+            throw new UsageException($"Option '{argument}' requires a value.");
+        }
+
+        switch (argument)
+        {
+            case "--name":
+                name = AssignSingleValue(name, value, argument);
+                break;
+            case "--kind":
+                kindText = AssignSingleValue(kindText, value, argument);
+                break;
+            case "--with-tests":
+                withTestsText = AssignSingleValue(withTestsText, value, argument);
+                break;
+            default:
+                throw new UsageException($"Unknown option '{argument}'.");
+        }
+    }
+
+    if (showHelp)
+    {
+        return new ScriptOptions(true, null, null, null);
+    }
+
+    if (name is null || kindText is null || withTestsText is null)
+    {
+        throw new UsageException("All of --name, --kind, and --with-tests are required.");
+    }
+
+    if (!TryParseProjectKind(kindText, out var kind))
+    {
+        throw new UsageException($"Unsupported value '{kindText}' for --kind.");
+    }
+
+    if (!TryParseWithTests(withTestsText, out var withTests))
+    {
+        throw new UsageException($"Unsupported value '{withTestsText}' for --with-tests.");
+    }
+
+    return new ScriptOptions(false, name, kind, withTests);
+}
+
+static void ValidateOptions(ScriptOptions options)
+{
+    if (string.IsNullOrWhiteSpace(options.Name))
+    {
+        throw new UsageException("Project name cannot be empty.");
+    }
+
+    if (options.Name.Contains('/') || options.Name.Contains('\\'))
+    {
+        throw new UsageException("Project name cannot contain directory separators.");
+    }
+
+    if (options.Name.EndsWith(".Tests", StringComparison.Ordinal))
+    {
+        throw new UsageException("Source project name cannot end with '.Tests'.");
+    }
+
+    if (options.Kind == ProjectKind.Cli
+        && !options.Name.EndsWith(".Cli", StringComparison.Ordinal))
+    {
+        throw new UsageException("CLI project names must end with '.Cli'.");
+    }
+
+    if (options.Name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+    {
+        throw new UsageException("Project name contains invalid path characters.");
+    }
+}
+
+static void EnsureNoConflicts(ProjectLayout layout, string solutionPath)
+{
+    if (Directory.Exists(layout.SourceDirectory))
+    {
+        throw new UsageException($"Source directory already exists: {layout.SourceDirectory}");
+    }
+
+    if (File.Exists(layout.SourceProjectPath))
+    {
+        throw new UsageException($"Source project already exists: {layout.SourceProjectPath}");
+    }
+
+    if (layout.WithTests)
+    {
+        if (Directory.Exists(layout.TestDirectory!))
+        {
+            throw new UsageException($"Test directory already exists: {layout.TestDirectory}");
+        }
+
+        if (File.Exists(layout.TestProjectPath!))
+        {
+            throw new UsageException($"Test project already exists: {layout.TestProjectPath}");
+        }
+    }
+
+    var solution = XDocument.Parse(File.ReadAllText(solutionPath));
+
+    if (SolutionContainsProject(solution, layout.SourceSolutionPath))
+    {
+        throw new UsageException($"Solution already contains '{layout.SourceSolutionPath}'.");
+    }
+
+    if (layout.WithTests && SolutionContainsProject(solution, layout.TestSolutionPath!))
+    {
+        throw new UsageException($"Solution already contains '{layout.TestSolutionPath}'.");
+    }
+}
+
+static async Task ScaffoldAsync(ProjectLayout layout, string repositoryRoot, string solutionPath)
+{
+    var originalSolutionText = File.ReadAllText(solutionPath);
+
+    try
+    {
+        await RunDotNetAsync(repositoryRoot, GetNewCommandArguments(layout));
+
+        NormalizeSourceProject(layout);
+
+        if (layout.WithTests)
+        {
+            Directory.CreateDirectory(layout.TestDirectory!);
+            WriteFile(layout.TestProjectPath!, CreateTestProjectFileContent(layout));
+            WriteFile(Path.Combine(layout.TestDirectory!, "SmokeTests.cs"), CreateSmokeTestsFileContent(layout));
+        }
+
+        await RunDotNetAsync(repositoryRoot, ["restore", layout.SourceProjectPath]);
+
+        if (layout.WithTests)
+        {
+            await RunDotNetAsync(repositoryRoot, ["restore", layout.TestProjectPath!]);
+        }
+
+        UpdateSolution(solutionPath, layout);
+    }
+    catch
+    {
+        if (File.ReadAllText(solutionPath) != originalSolutionText)
+        {
+            WriteFile(solutionPath, originalSolutionText);
+        }
+
+        if (layout.WithTests && Directory.Exists(layout.TestDirectory!))
+        {
+            Directory.Delete(layout.TestDirectory!, recursive: true);
+        }
+
+        if (Directory.Exists(layout.SourceDirectory))
+        {
+            Directory.Delete(layout.SourceDirectory, recursive: true);
+        }
+
+        throw;
+    }
+}
+
+static IReadOnlyList<string> GetNewCommandArguments(ProjectLayout layout)
+{
+    var arguments = new List<string>
+    {
+        "new",
+        GetTemplateName(layout.Kind),
+        "--name",
+        layout.ProjectName,
+        "--output",
+        layout.SourceDirectory,
+        "--framework",
+        "net10.0",
+        "--no-restore",
+    };
+
+    if (layout.Kind is ProjectKind.Cli or ProjectKind.WebEmpty)
+    {
+        arguments.Add("--use-program-main");
+    }
+
+    if (layout.Kind == ProjectKind.WebEmpty)
+    {
+        arguments.Add("--exclude-launch-settings");
+    }
+
+    return arguments;
+}
+
+static void NormalizeSourceProject(ProjectLayout layout)
+{
+    WriteFile(layout.SourceProjectPath, CreateSourceProjectFileContent(layout.Kind));
+
+    switch (layout.Kind)
+    {
+        case ProjectKind.Library:
+        {
+            var defaultClassPath = Path.Combine(layout.SourceDirectory, "Class1.cs");
+            if (File.Exists(defaultClassPath))
+            {
+                File.Delete(defaultClassPath);
+            }
+
+            break;
+        }
+        case ProjectKind.Cli:
+        case ProjectKind.WebEmpty:
+            WriteFile(Path.Combine(layout.SourceDirectory, "Program.cs"), CreateProgramFileContent(layout));
+            break;
+    }
+}
+
+static void UpdateSolution(string solutionPath, ProjectLayout layout)
+{
+    var originalText = File.ReadAllText(solutionPath);
+    var lineEnding = DetectLineEnding(originalText);
+    var solution = XDocument.Parse(originalText);
+
+    AddProjectToFolder(solution, "/src/managed/", layout.SourceSolutionPath);
+
+    if (layout.WithTests)
+    {
+        AddProjectToFolder(solution, "/tests/managed/", layout.TestSolutionPath!);
+    }
+
+    using var stream = File.Create(solutionPath);
+    using var writer = XmlWriter.Create(stream, new XmlWriterSettings
+    {
+        Encoding = new UTF8Encoding(false),
+        Indent = true,
+        IndentChars = "    ",
+        NewLineChars = lineEnding,
+        NewLineHandling = NewLineHandling.Replace,
+        OmitXmlDeclaration = true,
+    });
+
+    solution.Save(writer);
+}
+
+static void AddProjectToFolder(XDocument solution, string folderName, string projectPath)
+{
+    var folder = solution.Root?
+        .Elements("Folder")
+        .SingleOrDefault(element => string.Equals((string?)element.Attribute("Name"), folderName, StringComparison.Ordinal));
+
+    if (folder is null)
+    {
+        throw new InvalidOperationException($"Unable to find solution folder '{folderName}'.");
+    }
+
+    var projectPaths = folder
+        .Elements("Project")
+        .Select(static element => (string?)element.Attribute("Path"))
+        .Where(static path => !string.IsNullOrWhiteSpace(path))
+        .Cast<string>()
+        .ToList();
+
+    if (projectPaths.Contains(projectPath, StringComparer.Ordinal))
+    {
+        throw new InvalidOperationException($"Solution already contains '{projectPath}'.");
+    }
+
+    projectPaths.Add(projectPath);
+    projectPaths.Sort(StringComparer.Ordinal);
+
+    folder.Elements("Project").Remove();
+
+    foreach (var path in projectPaths)
+    {
+        folder.Add(new XElement("Project", new XAttribute("Path", path)));
+    }
+}
+
+static bool SolutionContainsProject(XDocument solution, string projectPath)
+{
+    return solution
+        .Descendants("Project")
+        .Any(element => string.Equals((string?)element.Attribute("Path"), projectPath, StringComparison.Ordinal));
+}
+
+static async Task RunDotNetAsync(string workingDirectory, IReadOnlyList<string> arguments)
+{
+    var startInfo = new ProcessStartInfo("dotnet")
+    {
+        WorkingDirectory = workingDirectory,
+        UseShellExecute = false,
+    };
+
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    using var process = new Process
+    {
+        StartInfo = startInfo,
+    };
+
+    if (!process.Start())
+    {
+        throw new InvalidOperationException($"Failed to start: dotnet {string.Join(" ", arguments)}");
+    }
+
+    await process.WaitForExitAsync();
+
+    if (process.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"Command failed with exit code {process.ExitCode}: dotnet {string.Join(" ", arguments)}");
+    }
+}
+
+static string GetTemplateName(ProjectKind kind)
+{
+    return kind switch
+    {
+        ProjectKind.Library => "classlib",
+        ProjectKind.Cli => "console",
+        ProjectKind.WebEmpty => "web",
+        _ => throw new InvalidOperationException($"Unsupported project kind '{kind}'."),
+    };
+}
+
+static string CreateSourceProjectFileContent(ProjectKind kind)
+{
+    var sdk = kind == ProjectKind.WebEmpty
+        ? "Microsoft.NET.Sdk.Web"
+        : "Microsoft.NET.Sdk";
+
+    return $"""
+        <Project Sdk="{sdk}">
+
+        </Project>
+        """;
+}
+
+static string CreateTestProjectFileContent(ProjectLayout layout)
+{
+    return $"""
+        <Project Sdk="Microsoft.NET.Sdk">
+
+            <ItemGroup>
+                <PackageReference Include="TUnit"/>
+                <ProjectReference Include="../../../src/managed/{layout.ProjectName}/{layout.ProjectName}.csproj"/>
+            </ItemGroup>
+
+        </Project>
+        """;
+}
+
+static string CreateProgramFileContent(ProjectLayout layout)
+{
+    return layout.Kind switch
+    {
+        ProjectKind.Cli => $$"""
+            namespace {{layout.ProjectName}};
+
+            internal class Program
+            {
+                private static int Main(string[] args)
+                {
+                    Console.WriteLine("Hello, World!");
+                    return 0;
+                }
+            }
+            """,
+        ProjectKind.WebEmpty => $$"""
+            namespace {{layout.ProjectName}};
+
+            internal class Program
+            {
+                private static void Main(string[] args)
+                {
+                    var builder = WebApplication.CreateBuilder(args);
+                    var app = builder.Build();
+
+                    app.MapGet("/", () => "Hello World!");
+
+                    app.Run();
+                }
+            }
+            """,
+        _ => throw new InvalidOperationException($"Project kind '{layout.Kind}' does not use Program.cs."),
+    };
+}
+
+static string CreateSmokeTestsFileContent(ProjectLayout layout)
+{
+    return $$"""
+        namespace {{layout.TestProjectName}};
+
+        public class SmokeTests
+        {
+            [Test]
+            public async Task Placeholder_Passes()
+            {
+                await Assert.That(Environment.CurrentManagedThreadId).IsGreaterThan(0);
+            }
+        }
+        """;
+}
+
+static void WriteFile(string path, string content)
+{
+    File.WriteAllText(path, content, new UTF8Encoding(false));
+}
+
+static string AssignSingleValue(string? currentValue, string value, string optionName)
+{
+    if (currentValue is not null)
+    {
+        throw new UsageException($"Option '{optionName}' was specified more than once.");
+    }
+
+    return value;
+}
+
+static bool TryParseProjectKind(string value, out ProjectKind kind)
+{
+    switch (value)
+    {
+        case "library":
+            kind = ProjectKind.Library;
+            return true;
+        case "cli":
+            kind = ProjectKind.Cli;
+            return true;
+        case "web-empty":
+            kind = ProjectKind.WebEmpty;
+            return true;
+        default:
+            kind = default;
+            return false;
+    }
+}
+
+static bool TryParseWithTests(string value, out bool withTests)
+{
+    switch (value)
+    {
+        case "yes":
+            withTests = true;
+            return true;
+        case "no":
+            withTests = false;
+            return true;
+        default:
+            withTests = false;
+            return false;
+    }
+}
+
+static void PrintHelp(TextWriter writer)
+{
+    writer.WriteLine(
+        """
+        Usage:
+          dotnet run --file eng/scripts/newManagedProject -- --name <ProjectName> --kind <library|cli|web-empty> --with-tests <yes|no>
+
+        Options:
+          --name <ProjectName>     Required. Creates src/managed/<ProjectName>/<ProjectName>.csproj.
+          --kind <value>           Required. One of: library, cli, web-empty.
+          --with-tests <yes|no>    Required. Creates tests/managed/<ProjectName>.Tests when set to yes.
+          --help                   Show this help text and exit.
+
+        Rules:
+          - All non-help options are required.
+          - Positional arguments are not allowed.
+          - CLI project names must end with .Cli.
+          - Source project names cannot end with .Tests.
+          - Existing source/test paths or existing solution entries cause the command to fail.
+
+        Examples:
+          dotnet run --file eng/scripts/newManagedProject -- --name Kawayi.Wakaze.Example --kind library --with-tests no
+          dotnet run --file eng/scripts/newManagedProject -- --name Kawayi.Wakaze.Tools.Cli --kind cli --with-tests yes
+          dotnet run --file eng/scripts/newManagedProject -- --name Kawayi.Wakaze.Web --kind web-empty --with-tests yes
+        """);
+}
+
+static string DetectLineEnding(string text)
+{
+    return text.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+enum ProjectKind
+{
+    Library,
+    Cli,
+    WebEmpty,
+}
+
+sealed record ScriptOptions(bool ShowHelp, string? Name, ProjectKind? Kind, bool? WithTests);
+
+sealed record ProjectLayout(
+    string ProjectName,
+    ProjectKind Kind,
+    bool WithTests,
+    string SourceDirectory,
+    string SourceProjectPath,
+    string SourceSolutionPath,
+    string TestProjectName,
+    string? TestDirectory,
+    string? TestProjectPath,
+    string? TestSolutionPath)
+{
+    public static ProjectLayout Create(string repositoryRoot, ScriptOptions options)
+    {
+        if (options.Name is null || options.Kind is null || options.WithTests is null)
+        {
+            throw new InvalidOperationException("Script options are incomplete.");
+        }
+
+        var sourceDirectory = Path.Combine(repositoryRoot, "src", "managed", options.Name);
+        var sourceProjectPath = Path.Combine(sourceDirectory, $"{options.Name}.csproj");
+        var sourceSolutionPath = ToSolutionPath(repositoryRoot, sourceProjectPath);
+
+        var testProjectName = $"{options.Name}.Tests";
+        string? testDirectory = null;
+        string? testProjectPath = null;
+        string? testSolutionPath = null;
+
+        if (options.WithTests.Value)
+        {
+            testDirectory = Path.Combine(repositoryRoot, "tests", "managed", testProjectName);
+            testProjectPath = Path.Combine(testDirectory, $"{testProjectName}.csproj");
+            testSolutionPath = ToSolutionPath(repositoryRoot, testProjectPath);
+        }
+
+        return new ProjectLayout(
+            options.Name,
+            options.Kind.Value,
+            options.WithTests.Value,
+            sourceDirectory,
+            sourceProjectPath,
+            sourceSolutionPath,
+            testProjectName,
+            testDirectory,
+            testProjectPath,
+            testSolutionPath);
+    }
+
+    private static string ToSolutionPath(string repositoryRoot, string absolutePath)
+    {
+        return Path.GetRelativePath(repositoryRoot, absolutePath)
+            .Replace('\\', '/');
+    }
+}
