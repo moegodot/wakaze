@@ -2,14 +2,8 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <IsPackable>false</IsPackable>
-        <Nullable>enable</Nullable>
-
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
-
-        <RootNamespace>Kawayi.Wakaze.Analyzer</RootNamespace>
-        <AssemblyName>Kawayi.Wakaze.Analyzer</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
