@@ -1,8 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\Kawayi.Wakaze.Analyzer\Kawayi.Wakaze.Analyzer.csproj"
                           OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\..\Kawayi.Wakaze.Abstractions\Kawayi.Wakaze.Abstractions.csproj"/>
     </ItemGroup>
 
 </Project>
