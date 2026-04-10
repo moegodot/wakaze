@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <ItemGroup>
+        <ProjectReference Include="../Kawayi.Wakaze.Abstractions/Kawayi.Wakaze.Abstractions.csproj"/>
+    </ItemGroup>
+</Project>

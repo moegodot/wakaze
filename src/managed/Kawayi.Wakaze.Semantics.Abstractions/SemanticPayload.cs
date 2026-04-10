@@ -10,12 +10,12 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
     /// <summary>
     /// Initializes a new instance of the <see cref="SemanticPayload"/> struct.
     /// </summary>
-    /// <param name="type">The semantic type of the payload.</param>
+    /// <param name="schema">The exact semantic schema of the payload.</param>
     /// <param name="format">The serialization format identifier.</param>
     /// <param name="content">The serialized payload bytes.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="format"/> is empty or whitespace.</exception>
     public SemanticPayload(
-        TypeUri type,
+        UriTypeSchema schema,
         string format,
         ReadOnlyMemory<byte> content)
     {
@@ -24,15 +24,15 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
             throw new ArgumentException("The payload format cannot be empty.", nameof(format));
         }
 
-        Type = type;
+        Schema = schema;
         Format = format;
         Content = content;
     }
 
     /// <summary>
-    /// Gets the semantic type of the payload.
+    /// Gets the exact semantic schema of the payload.
     /// </summary>
-    public TypeUri Type { get; }
+    public UriTypeSchema Schema { get; }
 
     /// <summary>
     /// Gets the serialization format identifier.
@@ -51,7 +51,7 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
     /// <returns><see langword="true"/> when the payload values are equal; otherwise, <see langword="false"/>.</returns>
     public bool Equals(SemanticPayload other)
     {
-        return Type.Equals(other.Type)
+        return Schema.Equals(other.Schema)
                && string.Equals(Format, other.Format, StringComparison.Ordinal)
                && Content.Span.SequenceEqual(other.Content.Span);
     }
@@ -73,7 +73,7 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
     public override int GetHashCode()
     {
         var hash = new HashCode();
-        hash.Add(Type);
+        hash.Add(Schema);
         hash.Add(Format, StringComparer.Ordinal);
 
         foreach (var value in Content.Span)

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <PackageReference Include="TUnit"/>
+        <ProjectReference Include="../../../src/managed/Kawayi.Wakaze.Semantics.Abstractions/Kawayi.Wakaze.Semantics.Abstractions.csproj"/>
+    </ItemGroup>
+
+</Project>

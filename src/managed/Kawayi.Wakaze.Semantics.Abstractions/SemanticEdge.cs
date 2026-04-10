@@ -13,7 +13,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
     /// </summary>
     /// <param name="sourceEntityId">The source entity identifier.</param>
     /// <param name="sourceRevision">The source entity revision.</param>
-    /// <param name="ownerType">The semantic value type that owns the relation.</param>
+    /// <param name="ownerSchema">The exact semantic schema that owns the relation.</param>
     /// <param name="relationKey">The relation key within the owning semantic value.</param>
     /// <param name="targetEntityId">The referenced entity identifier.</param>
     /// <param name="reachability">The reachability kind projected for the relation.</param>
@@ -26,7 +26,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
     public SemanticEdge(
         EntityId sourceEntityId,
         EntityRevision sourceRevision,
-        TypeUri ownerType,
+        UriTypeSchema ownerSchema,
         string relationKey,
         EntityId targetEntityId,
         RefKind reachability,
@@ -51,7 +51,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
 
         SourceEntityId = sourceEntityId;
         SourceRevision = sourceRevision;
-        OwnerType = ownerType;
+        OwnerSchema = ownerSchema;
         RelationKey = relationKey;
         TargetEntityId = targetEntityId;
         Reachability = reachability;
@@ -69,9 +69,9 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
     public EntityRevision SourceRevision { get; }
 
     /// <summary>
-    /// Gets the semantic value type that owns the relation.
+    /// Gets the exact semantic schema that owns the relation.
     /// </summary>
-    public TypeUri OwnerType { get; }
+    public UriTypeSchema OwnerSchema { get; }
 
     /// <summary>
     /// Gets the relation key within the owning semantic value.
@@ -102,7 +102,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
     {
         return SourceEntityId.Equals(other.SourceEntityId)
                && SourceRevision.Equals(other.SourceRevision)
-               && OwnerType.Equals(other.OwnerType)
+               && OwnerSchema.Equals(other.OwnerSchema)
                && string.Equals(RelationKey, other.RelationKey, StringComparison.Ordinal)
                && TargetEntityId.Equals(other.TargetEntityId)
                && Reachability == other.Reachability
@@ -128,7 +128,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
         return HashCode.Combine(
             SourceEntityId,
             SourceRevision,
-            OwnerType,
+            OwnerSchema,
             StringComparer.Ordinal.GetHashCode(RelationKey),
             TargetEntityId,
             Reachability,

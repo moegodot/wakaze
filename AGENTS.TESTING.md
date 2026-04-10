@@ -4,7 +4,9 @@
 
 ## 测试框架与运行方式
 
-本仓库测试使用 TUnit，并通过 Microsoft Testing Platform 运行。在命令行场景下，优先使用 `dotnet run --project ... --`，并将测试程序参数放在 `--` 之后。若要一次运行 `tests/managed` 下的全部测试项目，可使用 `tests/managed/RunManagedTests.cs` 这个 file-based C# 入口。
+本仓库测试使用 TUnit，并通过 Microsoft Testing Platform 运行。在命令行场景下，优先使用 `dotnet run --project ... --`
+，并将测试程序参数放在 `--` 之后。若要一次运行 `tests/managed` 下的全部测试项目，可使用 `tests/managed/RunManagedTests.cs`
+这个 file-based C# 入口。
 
 ## 当前测试项目
 
@@ -40,8 +42,10 @@
 - 不要在本仓库的推荐模板中加入 `-nologo` 之类会被测试可执行程序识别为未知选项的旧式参数
 - 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/ClassName/*"`
 - 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/*/TestName"`
-- 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "(/*/*/ClassA/*)|(/*/*/ClassB/*)"`
-- 推荐模板：`dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/*/*[Category=Value]"`
+- 推荐模板：
+  `dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "(/*/*/ClassA/*)|(/*/*/ClassB/*)"`
+- 推荐模板：
+  `dotnet run --project tests/managed/<Project>/<Project>.csproj -- --treenode-filter "/*/*/*/*[Category=Value]"`
 - 即使不加筛选，也优先使用 `dotnet run --project ... --` 这一形式
 - 需要聚合运行 `tests/managed` 下所有测试项目时，使用 `dotnet run --file tests/managed/RunManagedTests.cs --`
 - 聚合入口会自动发现 `tests/managed` 下的 `*.Tests.csproj`，并将 `--` 之后的参数原样透传给每个测试项目
@@ -49,10 +53,12 @@
 
 ## 已验证的当前环境状态
 
-- `dotnet run --project tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj -- --help` 可正常进入 TUnit 测试程序
+- `dotnet run --project tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj -- --help` 可正常进入
+  TUnit 测试程序
 - `Kawayi.Wakaze.Digest.Tests` 可通过
 - `Kawayi.Wakaze.Cas.Local.Tests` 可通过
 
 ## 其他注意事项
 
 不要手动编辑 `TestResults/` 下的生成文件。
+诺要运行所有测试，见`AGENTS.ENG.md`

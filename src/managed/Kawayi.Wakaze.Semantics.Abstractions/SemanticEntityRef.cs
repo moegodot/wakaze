@@ -8,7 +8,7 @@ namespace Kawayi.Wakaze.Semantics.Abstractions;
 /// </summary>
 /// <param name="Target">The referenced entity identifier.</param>
 /// <param name="ExpectedPrimaryType">
-/// An optional expected primary semantic type for the referenced entity.
+/// An optional expected primary semantic family for the referenced entity.
 /// </param>
 public readonly record struct SemanticEntityRef(
     EntityId Target,

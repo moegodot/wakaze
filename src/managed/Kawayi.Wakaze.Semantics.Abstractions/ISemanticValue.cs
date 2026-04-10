@@ -9,10 +9,6 @@ namespace Kawayi.Wakaze.Semantics.Abstractions;
 /// Implementations are expected to behave as immutable values.
 /// The public contract intentionally does not expose storage, database, or blob concerns.
 /// </remarks>
-public interface ISemanticValue
+public interface ISemanticValue : ITypedObject
 {
-    /// <summary>
-    /// Gets the semantic type that identifies the payload schema.
-    /// </summary>
-    TypeUri Type { get; }
 }

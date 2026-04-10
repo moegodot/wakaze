@@ -1,25 +1,17 @@
 namespace Kawayi.Wakaze.Abstractions;
 
 /// <summary>
-/// Represents a validated semantic type URI.
+/// Represents a validated versionless type family URI.
 /// </summary>
 /// <remarks>
-/// Valid values must use the <c>type</c> scheme, include a host, include at least one path segment,
-/// and end with a version segment in the form <c>v{uint}</c>.
-/// Query, fragment, explicit port, and user info are not permitted.
+/// A type family URI identifies a contract family such as <c>type://example.com/tag</c>.
+/// Version information is modeled separately through <see cref="UriTypeSchema"/>.
+/// Query, fragment, explicit port, user info, and a trailing slash are not permitted.
 /// </remarks>
 public readonly struct TypeUri : IEquatable<TypeUri>
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="TypeUri"/> struct from an absolute <see cref="Uri"/>.
-    /// </summary>
-    /// <param name="value">The URI value to validate.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="value"/> is not a valid typed URI.</exception>
-    public TypeUri(Uri value)
+    private TypeUri(Uri value, bool _)
     {
-        ArgumentNullException.ThrowIfNull(value);
-        Validate(value);
         Value = value;
     }
 
@@ -33,8 +25,15 @@ public readonly struct TypeUri : IEquatable<TypeUri>
     /// or does not satisfy typed URI constraints.
     /// </exception>
     public TypeUri(string value)
-        : this(ParseUri(value))
     {
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (!TryParse(value, out var parsed))
+        {
+            throw new ArgumentException("The value is not a valid type family URI.", nameof(value));
+        }
+
+        Value = parsed.Value;
     }
 
     /// <summary>
@@ -102,17 +101,48 @@ public readonly struct TypeUri : IEquatable<TypeUri>
         return !left.Equals(right);
     }
 
-    private static Uri ParseUri(string value)
+    /// <summary>
+    /// Attempts to parse a type family URI from text.
+    /// </summary>
+    /// <param name="value">The URI string to parse.</param>
+    /// <param name="typeUri">
+    /// When this method returns <see langword="true"/>, contains the parsed type family URI;
+    /// otherwise, the default value.
+    /// </param>
+    /// <returns><see langword="true"/> when parsing succeeds; otherwise, <see langword="false"/>.</returns>
+    public static bool TryParse(string? value, out TypeUri typeUri)
     {
-        ArgumentNullException.ThrowIfNull(value);
+        typeUri = default;
+
+        if (value is null)
+        {
+            return false;
+        }
 
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
-            throw new ArgumentException("The value is not a valid absolute URI.", nameof(value));
+        {
+            return false;
+        }
 
-        return uri;
+        try
+        {
+            ValidateFamilyUri(uri);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        typeUri = new TypeUri(uri, true);
+        return true;
     }
 
-    private static void Validate(Uri value)
+    internal static TypeUri FromValidatedUri(Uri value)
+    {
+        return new TypeUri(value, true);
+    }
+
+    internal static void ValidateFamilyUri(Uri value)
     {
         if (!value.IsAbsoluteUri) throw new ArgumentException("The URI must be absolute.", nameof(value));
 
@@ -148,27 +178,5 @@ public readonly struct TypeUri : IEquatable<TypeUri>
 
         if (pathSegments.Length == 0)
             throw new ArgumentException("The URI must include at least one path segment.", nameof(value));
-
-        var versionSegment = pathSegments[^1];
-        if (!TryValidateVersionSegment(versionSegment))
-            throw new ArgumentException(
-                "The final path segment must match 'v{uint}' without leading zeroes.",
-                nameof(value));
-    }
-
-    private static bool TryValidateVersionSegment(string versionSegment)
-    {
-        if (versionSegment.Length < 2 || versionSegment[0] != 'v') return false;
-
-        var digits = versionSegment.AsSpan(1);
-        if (digits.Length == 0) return false;
-
-        foreach (var digit in digits)
-            if (!char.IsAsciiDigit(digit))
-                return false;
-
-        if (digits.Length > 1 && digits[0] == '0') return false;
-
-        return uint.TryParse(digits, out _);
     }
 }

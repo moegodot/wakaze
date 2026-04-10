@@ -13,7 +13,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
     /// </summary>
     /// <param name="entityId">The entity identifier that owns the property.</param>
     /// <param name="revision">The entity revision that produced the property.</param>
-    /// <param name="ownerType">The semantic value type that owns the property.</param>
+    /// <param name="ownerSchema">The exact semantic schema that owns the property.</param>
     /// <param name="propertyKey">The property key within the owning semantic value.</param>
     /// <param name="valueKind">The canonical value kind.</param>
     /// <param name="canonicalValue">The canonical string representation of the property value.</param>
@@ -26,7 +26,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
     public SemanticProperty(
         EntityId entityId,
         EntityRevision revision,
-        TypeUri ownerType,
+        UriTypeSchema ownerSchema,
         string propertyKey,
         SemanticPropertyValueKind valueKind,
         string canonicalValue,
@@ -56,7 +56,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
 
         EntityId = entityId;
         Revision = revision;
-        OwnerType = ownerType;
+        OwnerSchema = ownerSchema;
         PropertyKey = propertyKey;
         ValueKind = valueKind;
         CanonicalValue = canonicalValue;
@@ -74,9 +74,9 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
     public EntityRevision Revision { get; }
 
     /// <summary>
-    /// Gets the semantic value type that owns the property.
+    /// Gets the exact semantic schema that owns the property.
     /// </summary>
-    public TypeUri OwnerType { get; }
+    public UriTypeSchema OwnerSchema { get; }
 
     /// <summary>
     /// Gets the property key within the owning semantic value.
@@ -107,7 +107,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
     {
         return EntityId.Equals(other.EntityId)
                && Revision.Equals(other.Revision)
-               && OwnerType.Equals(other.OwnerType)
+               && OwnerSchema.Equals(other.OwnerSchema)
                && string.Equals(PropertyKey, other.PropertyKey, StringComparison.Ordinal)
                && ValueKind == other.ValueKind
                && string.Equals(CanonicalValue, other.CanonicalValue, StringComparison.Ordinal)
@@ -133,7 +133,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
         return HashCode.Combine(
             EntityId,
             Revision,
-            OwnerType,
+            OwnerSchema,
             StringComparer.Ordinal.GetHashCode(PropertyKey),
             ValueKind,
             StringComparer.Ordinal.GetHashCode(CanonicalValue),

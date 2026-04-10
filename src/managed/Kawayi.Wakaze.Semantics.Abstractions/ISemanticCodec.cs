@@ -8,9 +8,14 @@ namespace Kawayi.Wakaze.Semantics.Abstractions;
 public interface ISemanticCodec
 {
     /// <summary>
-    /// Gets the semantic type handled by the codec.
+    /// Gets the native schema written by the codec.
     /// </summary>
-    TypeUri Type { get; }
+    UriTypeSchema Schema { get; }
+
+    /// <summary>
+    /// Gets the exact schemas that the codec can deserialize.
+    /// </summary>
+    IReadOnlySet<UriTypeSchema> ReadableSchemas { get; }
 
     /// <summary>
     /// Deserializes a semantic payload into an immutable semantic value.
@@ -20,7 +25,7 @@ public interface ISemanticCodec
     ISemanticValue Deserialize(SemanticPayload payload);
 
     /// <summary>
-    /// Serializes an immutable semantic value into a payload.
+    /// Serializes an immutable semantic value into a payload using <see cref="Schema"/>.
     /// </summary>
     /// <param name="value">The semantic value to serialize.</param>
     /// <returns>The serialized payload.</returns>
