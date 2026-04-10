@@ -3,6 +3,7 @@
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>true</ImplicitUsings>
+        <LangVersion>Latest</LangVersion>
 
         <PackageProjectUrl>https://github.com/moegodot/wakaze</PackageProjectUrl>
         <RepositoryUrl>https://github.com/moegodot/wakaze</RepositoryUrl>

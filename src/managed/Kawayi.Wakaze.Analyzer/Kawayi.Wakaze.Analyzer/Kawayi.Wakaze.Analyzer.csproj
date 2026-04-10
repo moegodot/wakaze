@@ -15,8 +15,4 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <AdditionalFiles Remove="AnalyzerReleases.Unshipped.md"/>
-    </ItemGroup>
-
 </Project>
