@@ -4,13 +4,13 @@ namespace Kawayi.Wakaze.Abstractions;
 /// Represents a validated versionless type family URI.
 /// </summary>
 /// <remarks>
-/// A type family URI identifies a contract family such as <c>type://example.com/tag</c>.
+/// A type family URI identifies a contract family such as <c>semantic://example.com/tag</c>.
 /// Version information is modeled separately through <see cref="UriTypeSchema"/>.
 /// Query, fragment, explicit port, user info, and a trailing slash are not permitted.
 /// </remarks>
 public readonly struct TypeUri : IEquatable<TypeUri>
 {
-    private TypeUri(Uri value, bool _)
+    private TypeUri(Uri value)
     {
         Value = value;
     }
@@ -29,9 +29,7 @@ public readonly struct TypeUri : IEquatable<TypeUri>
         ArgumentNullException.ThrowIfNull(value);
 
         if (!TryParse(value, out var parsed))
-        {
             throw new ArgumentException("The value is not a valid type family URI.", nameof(value));
-        }
 
         Value = parsed.Value;
     }
@@ -62,16 +60,16 @@ public readonly struct TypeUri : IEquatable<TypeUri>
     }
 
     /// <summary>
-    /// Returns a hash code for the current typed URI.
+    /// Returns a hash code for the current family URI.
     /// </summary>
-    /// <returns>A hash code for the current typed URI.</returns>
+    /// <returns>A hash code for the current family URI.</returns>
     public override int GetHashCode()
     {
         return Value?.GetHashCode() ?? 0;
     }
 
     /// <summary>
-    /// Returns the absolute URI text for the current typed URI.
+    /// Returns the absolute URI text for the current family URI.
     /// </summary>
     /// <returns>The absolute URI text.</returns>
     public override string ToString()
@@ -114,15 +112,9 @@ public readonly struct TypeUri : IEquatable<TypeUri>
     {
         typeUri = default;
 
-        if (value is null)
-        {
-            return false;
-        }
+        if (value is null) return false;
 
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return false;
 
         try
         {
@@ -133,21 +125,18 @@ public readonly struct TypeUri : IEquatable<TypeUri>
             return false;
         }
 
-        typeUri = new TypeUri(uri, true);
+        typeUri = new TypeUri(uri);
         return true;
     }
 
     internal static TypeUri FromValidatedUri(Uri value)
     {
-        return new TypeUri(value, true);
+        return new TypeUri(value);
     }
 
     internal static void ValidateFamilyUri(Uri value)
     {
         if (!value.IsAbsoluteUri) throw new ArgumentException("The URI must be absolute.", nameof(value));
-
-        if (!string.Equals(value.Scheme, "type", StringComparison.Ordinal))
-            throw new ArgumentException("The URI scheme must be 'type'.", nameof(value));
 
         if (string.IsNullOrWhiteSpace(value.Host))
             throw new ArgumentException("The URI must include a host name.", nameof(value));

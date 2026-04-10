@@ -6,6 +6,7 @@ namespace Kawayi.Wakaze.Abstractions;
 public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
 {
     private readonly Dictionary<UriTypeSchema, Dictionary<UriTypeSchema, Func<ITypedObject, ITypedObject>>> _edges = [];
+    private readonly Dictionary<UriTypeSchema, HashSet<UriTypeSchema>> _declaredProjectableTargets = [];
 
     /// <summary>
     /// Registers a direct projector from <paramref name="source"/> to <paramref name="target"/>.
@@ -24,6 +25,7 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
     {
         ArgumentNullException.ThrowIfNull(projector);
         EnsureSameFamily(source, target);
+        EnsureDeclaredProjectableTarget(source, target);
 
         if (source == target)
         {
@@ -39,6 +41,50 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
         targets[target] = projector;
     }
 
+    /// <summary>
+    /// Registers the declared projectable targets for <typeparamref name="TSchema"/>.
+    /// </summary>
+    /// <typeparam name="TSchema">The source schema definition.</typeparam>
+    /// <typeparam name="TFamily">The source family definition.</typeparam>
+    /// <typeparam name="TScheme">The source scheme definition.</typeparam>
+    public void RegisterSchema<TSchema, TFamily, TScheme>()
+        where TSchema : ISchemaDefinition<TFamily, TScheme>
+        where TFamily : ITypeFamilyDefinition<TScheme>
+        where TScheme : IUriSchemeDefinition
+    {
+        var targets = new HashSet<UriTypeSchema>(TSchema.ProjectableTargets);
+
+        foreach (var target in targets)
+        {
+            EnsureSameFamily(TSchema.Schema, target);
+        }
+
+        _declaredProjectableTargets[TSchema.Schema] = targets;
+    }
+
+    /// <summary>
+    /// Registers a direct projector declared by schema definitions.
+    /// </summary>
+    /// <typeparam name="TSourceSchema">The source schema definition.</typeparam>
+    /// <typeparam name="TSourceFamily">The source family definition.</typeparam>
+    /// <typeparam name="TSourceScheme">The source scheme definition.</typeparam>
+    /// <typeparam name="TTargetSchema">The target schema definition.</typeparam>
+    /// <typeparam name="TTargetFamily">The target family definition.</typeparam>
+    /// <typeparam name="TTargetScheme">The target scheme definition.</typeparam>
+    /// <param name="projector">The direct projection function.</param>
+    public void Register<TSourceSchema, TSourceFamily, TSourceScheme, TTargetSchema, TTargetFamily, TTargetScheme>(
+        Func<ITypedObject, ITypedObject> projector)
+        where TSourceSchema : ISchemaDefinition<TSourceFamily, TSourceScheme>
+        where TSourceFamily : ITypeFamilyDefinition<TSourceScheme>
+        where TSourceScheme : IUriSchemeDefinition
+        where TTargetSchema : ISchemaDefinition<TTargetFamily, TTargetScheme>
+        where TTargetFamily : ITypeFamilyDefinition<TTargetScheme>
+        where TTargetScheme : IUriSchemeDefinition
+    {
+        RegisterSchema<TSourceSchema, TSourceFamily, TSourceScheme>();
+        Register(TSourceSchema.Schema, TTargetSchema.Schema, projector);
+    }
+
     /// <inheritdoc />
     public bool CanProject(UriTypeSchema source, UriTypeSchema target)
     {
@@ -52,7 +98,11 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
             return false;
         }
 
-        return TryFindPath(source, target, out _);
+        return TypeSchemaGraphSearch.TryFindPath(
+            source,
+            target,
+            current => _edges.TryGetValue(current, out var neighbors) ? neighbors.Keys : [],
+            out _);
     }
 
     /// <inheritdoc />
@@ -72,11 +122,17 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
             return false;
         }
 
-        if (!TryFindPath(source.TypeSchema, target, out var path))
+        if (!TypeSchemaGraphSearch.TryFindPath(
+                source.TypeSchema,
+                target,
+                current => _edges.TryGetValue(current, out var neighbors) ? neighbors.Keys : [],
+                out var previous))
         {
             projected = null;
             return false;
         }
+
+        var path = BuildPath(source.TypeSchema, target, previous);
 
         ITypedObject current = source;
         foreach (var edge in path)
@@ -95,47 +151,6 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
 
         projected = current;
         return true;
-    }
-
-    private bool TryFindPath(
-        UriTypeSchema source,
-        UriTypeSchema target,
-        out IReadOnlyList<(UriTypeSchema Target, Func<ITypedObject, ITypedObject> Projector)> path)
-    {
-        path = Array.Empty<(UriTypeSchema Target, Func<ITypedObject, ITypedObject> Projector)>();
-
-        var visited = new HashSet<UriTypeSchema> { source };
-        var queue = new Queue<UriTypeSchema>();
-        var previous = new Dictionary<UriTypeSchema, UriTypeSchema>();
-        queue.Enqueue(source);
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (!_edges.TryGetValue(current, out var neighbors))
-            {
-                continue;
-            }
-
-            foreach (var next in neighbors.Keys)
-            {
-                if (!visited.Add(next))
-                {
-                    continue;
-                }
-
-                previous[next] = current;
-                if (next == target)
-                {
-                    path = BuildPath(source, target, previous);
-                    return true;
-                }
-
-                queue.Enqueue(next);
-            }
-        }
-
-        return false;
     }
 
     private IReadOnlyList<(UriTypeSchema Target, Func<ITypedObject, ITypedObject> Projector)> BuildPath(
@@ -163,6 +178,21 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
         if (source.TypeUri != target.TypeUri)
         {
             throw new ArgumentException("Projection edges must stay within the same type family.");
+        }
+    }
+
+    private void EnsureDeclaredProjectableTarget(UriTypeSchema source, UriTypeSchema target)
+    {
+        if (!_declaredProjectableTargets.TryGetValue(source, out var declaredTargets))
+        {
+            return;
+        }
+
+        if (!declaredTargets.Contains(target))
+        {
+            throw new ArgumentException(
+                $"Projection target '{target}' is not declared in the source schema metadata for '{source}'.",
+                nameof(target));
         }
     }
 }

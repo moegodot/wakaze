@@ -1,7 +1,7 @@
 namespace Kawayi.Wakaze.Db.Abstractions;
 
 /// <summary>
-/// Provisions new database resources without assuming a local data directory layout.
+/// Provisions new database resources.
 /// </summary>
 public interface IDatabaseProvisioner
 {

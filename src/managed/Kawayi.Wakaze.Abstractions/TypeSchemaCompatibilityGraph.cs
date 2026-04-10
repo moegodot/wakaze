@@ -33,6 +33,23 @@ public sealed class TypeSchemaCompatibilityGraph : ITypeSchemaCompatibility
         targets.Add(target);
     }
 
+    /// <summary>
+    /// Registers all compatibility edges declared by <typeparamref name="TSchema"/>.
+    /// </summary>
+    /// <typeparam name="TSchema">The source schema definition.</typeparam>
+    /// <typeparam name="TFamily">The source family definition.</typeparam>
+    /// <typeparam name="TScheme">The source scheme definition.</typeparam>
+    public void Register<TSchema, TFamily, TScheme>()
+        where TSchema : ISchemaDefinition<TFamily, TScheme>
+        where TFamily : ITypeFamilyDefinition<TScheme>
+        where TScheme : IUriSchemeDefinition
+    {
+        foreach (var target in TSchema.CompatibleTargets)
+        {
+            Register(TSchema.Schema, target);
+        }
+    }
+
     /// <inheritdoc />
     public bool CanReadAs(UriTypeSchema source, UriTypeSchema target)
     {
@@ -46,45 +63,11 @@ public sealed class TypeSchemaCompatibilityGraph : ITypeSchemaCompatibility
             return false;
         }
 
-        return TryFindPath(source, target, out _);
-    }
-
-    private bool TryFindPath(
-        UriTypeSchema source,
-        UriTypeSchema target,
-        out Dictionary<UriTypeSchema, UriTypeSchema> previous)
-    {
-        previous = [];
-        var visited = new HashSet<UriTypeSchema> { source };
-        var queue = new Queue<UriTypeSchema>();
-        queue.Enqueue(source);
-
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (!_edges.TryGetValue(current, out var neighbors))
-            {
-                continue;
-            }
-
-            foreach (var next in neighbors)
-            {
-                if (!visited.Add(next))
-                {
-                    continue;
-                }
-
-                previous[next] = current;
-                if (next == target)
-                {
-                    return true;
-                }
-
-                queue.Enqueue(next);
-            }
-        }
-
-        return false;
+        return TypeSchemaGraphSearch.TryFindPath(
+            source,
+            target,
+            current => _edges.TryGetValue(current, out var neighbors) ? neighbors : [],
+            out _);
     }
 
     private static void EnsureSameFamily(UriTypeSchema source, UriTypeSchema target)

@@ -143,6 +143,12 @@
       },
       "kawayi.wakaze.abstractions": {
         "type": "Project"
+      },
+      "kawayi.wakaze.db.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "Kawayi.Wakaze.Abstractions": "[1.0.0, )"
+        }
       }
     }
   }

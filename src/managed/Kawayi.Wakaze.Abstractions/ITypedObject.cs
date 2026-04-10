@@ -10,3 +10,12 @@ public interface ITypedObject
     /// </summary>
     UriTypeSchema TypeSchema { get; }
 }
+
+/// <summary>
+/// Represents an object bound to a compile-time schema definition.
+/// </summary>
+/// <typeparam name="TSchema">The exact schema definition.</typeparam>
+public interface ITypedObject<TSchema> : ITypedObject
+    where TSchema : ISchemaDefinitionMarker
+{
+}

@@ -13,15 +13,15 @@ public class SemanticSchemaTests
     {
         var content = new byte[] { 1, 2, 3 };
         var left = new SemanticPayload(
-            new UriTypeSchema("type://wakaze.dev/tag/v2"),
+            new UriTypeSchema("semantic://wakaze.dev/tag/v2"),
             "json",
             content);
         var same = new SemanticPayload(
-            new UriTypeSchema("type://wakaze.dev/tag/v2"),
+            new UriTypeSchema("semantic://wakaze.dev/tag/v2"),
             "json",
             content);
         var otherSchema = new SemanticPayload(
-            new UriTypeSchema("type://wakaze.dev/tag/v1"),
+            new UriTypeSchema("semantic://wakaze.dev/tag/v1"),
             "json",
             content);
 
@@ -33,8 +33,8 @@ public class SemanticSchemaTests
     [Test]
     public async Task SemanticClaim_Accepts_OneExtensionPerFamily()
     {
-        var primary = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/primary/v1"), "primary");
-        var extension = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/extension/v2"), "extension");
+        var primary = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/primary/v1"), "primary");
+        var extension = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/extension/v2"), "extension");
 
         var claim = new SemanticClaim(
             CreateRevision(),
@@ -48,9 +48,9 @@ public class SemanticSchemaTests
     [Test]
     public void SemanticClaim_Rejects_ExtensionKey_ThatDoesNotMatch_ValueFamily()
     {
-        var primary = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/primary/v1"), "primary");
-        var extension = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/extension/v2"), "extension");
-        var wrongFamily = new TypeUri("type://wakaze.dev/other");
+        var primary = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/primary/v1"), "primary");
+        var extension = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/extension/v2"), "extension");
+        var wrongFamily = new TypeUri("semantic://wakaze.dev/other");
 
         AssertThrows<ArgumentException>(() => new SemanticClaim(
             CreateRevision(),
@@ -61,8 +61,8 @@ public class SemanticSchemaTests
     [Test]
     public void SemanticClaim_Rejects_PrimaryFamily_In_Extensions_EvenWhenVersionDiffers()
     {
-        var primary = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/tag/v1"), "primary");
-        var extension = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/tag/v2"), "extension");
+        var primary = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/tag/v1"), "primary");
+        var extension = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/tag/v2"), "extension");
 
         AssertThrows<ArgumentException>(() => new SemanticClaim(
             CreateRevision(),
@@ -73,7 +73,7 @@ public class SemanticSchemaTests
     [Test]
     public async Task SessionFacingApis_Compile_Against_Family_And_ExactSchema_Split()
     {
-        var primary = new FakeSemanticValue(new UriTypeSchema("type://wakaze.dev/tag/v2"), "primary");
+        var primary = new FakeSemanticValue(new UriTypeSchema("semantic://wakaze.dev/tag/v2"), "primary");
         var session = new FakeSemanticSession(primary);
 
         var byFamily = session.TryGet(primary.TypeSchema.TypeUri, out ISemanticValue? familyValue);

@@ -8,21 +8,21 @@ public class TypeSchemaCompatibilityGraphTests
     public async Task CanReadAs_Returns_True_For_ExactSchema_WithoutRegistration()
     {
         var graph = new TypeSchemaCompatibilityGraph();
-        var schema = new UriTypeSchema("type://wakaze.dev/tag/v1");
+        var schema = TagV1Schema.Schema;
 
         await Assert.That(graph.CanReadAs(schema, schema)).IsTrue();
     }
 
     [Test]
-    public async Task CanReadAs_Resolves_Explicit_And_TransitiveEdges()
+    public async Task CanReadAs_Registers_Declared_And_TransitiveEdges()
     {
         var graph = new TypeSchemaCompatibilityGraph();
-        var v3 = new UriTypeSchema("type://wakaze.dev/tag/v3");
-        var v2 = new UriTypeSchema("type://wakaze.dev/tag/v2");
-        var v1 = new UriTypeSchema("type://wakaze.dev/tag/v1");
+        var v3 = TagV3Schema.Schema;
+        var v2 = TagV2Schema.Schema;
+        var v1 = TagV1Schema.Schema;
 
-        graph.Register(v3, v2);
-        graph.Register(v2, v1);
+        graph.Register<TagV3Schema, TagFamily, SemanticScheme>();
+        graph.Register<TagV2Schema, TagFamily, SemanticScheme>();
 
         await Assert.That(graph.CanReadAs(v3, v2)).IsTrue();
         await Assert.That(graph.CanReadAs(v3, v1)).IsTrue();
@@ -33,9 +33,9 @@ public class TypeSchemaCompatibilityGraphTests
     public async Task CanReadAs_Returns_False_When_NoPathExists_OrFamiliesDiffer()
     {
         var graph = new TypeSchemaCompatibilityGraph();
-        var source = new UriTypeSchema("type://wakaze.dev/tag/v2");
-        var missing = new UriTypeSchema("type://wakaze.dev/tag/v1");
-        var otherFamily = new UriTypeSchema("type://wakaze.dev/other/v1");
+        var source = TagV2Schema.Schema;
+        var missing = TagV1Schema.Schema;
+        var otherFamily = OtherV1Schema.Schema;
 
         await Assert.That(graph.CanReadAs(source, missing)).IsFalse();
         await Assert.That(graph.CanReadAs(source, otherFamily)).IsFalse();
@@ -45,8 +45,8 @@ public class TypeSchemaCompatibilityGraphTests
     public void Register_Rejects_CrossFamilyEdges()
     {
         var graph = new TypeSchemaCompatibilityGraph();
-        var source = new UriTypeSchema("type://wakaze.dev/tag/v2");
-        var target = new UriTypeSchema("type://wakaze.dev/other/v1");
+        var source = TagV2Schema.Schema;
+        var target = OtherV1Schema.Schema;
 
         AssertThrows<ArgumentException>(() => graph.Register(source, target));
     }

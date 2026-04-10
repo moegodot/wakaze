@@ -8,12 +8,10 @@ public class TypeSchemaProjectorRegistryTests
     public async Task TryProject_Uses_DirectProjector()
     {
         var registry = new TypeSchemaProjectorRegistry();
-        var sourceSchema = new UriTypeSchema("type://wakaze.dev/tag/v2");
-        var targetSchema = new UriTypeSchema("type://wakaze.dev/tag/v1");
+        var sourceSchema = TagV2Schema.Schema;
+        var targetSchema = TagV1Schema.Schema;
 
-        registry.Register(
-            sourceSchema,
-            targetSchema,
+        registry.Register<TagV2Schema, TagFamily, SemanticScheme, TagV1Schema, TagFamily, SemanticScheme>(
             source => new FakeTypedObject(targetSchema, $"{((FakeTypedObject)source).Value}:v1"));
 
         var source = new FakeTypedObject(sourceSchema, "tag");
@@ -28,12 +26,14 @@ public class TypeSchemaProjectorRegistryTests
     public async Task TryProject_Chains_MultipleProjectors()
     {
         var registry = new TypeSchemaProjectorRegistry();
-        var v3 = new UriTypeSchema("type://wakaze.dev/tag/v3");
-        var v2 = new UriTypeSchema("type://wakaze.dev/tag/v2");
-        var v1 = new UriTypeSchema("type://wakaze.dev/tag/v1");
+        var v3 = TagV3Schema.Schema;
+        var v2 = TagV2Schema.Schema;
+        var v1 = TagV1Schema.Schema;
 
-        registry.Register(v3, v2, source => new FakeTypedObject(v2, $"{((FakeTypedObject)source).Value}:v2"));
-        registry.Register(v2, v1, source => new FakeTypedObject(v1, $"{((FakeTypedObject)source).Value}:v1"));
+        registry.Register<TagV3Schema, TagFamily, SemanticScheme, TagV2Schema, TagFamily, SemanticScheme>(
+            source => new FakeTypedObject(v2, $"{((FakeTypedObject)source).Value}:v2"));
+        registry.Register<TagV2Schema, TagFamily, SemanticScheme, TagV1Schema, TagFamily, SemanticScheme>(
+            source => new FakeTypedObject(v1, $"{((FakeTypedObject)source).Value}:v1"));
 
         var result = registry.TryProject(new FakeTypedObject(v3, "tag"), v1, out var projected);
 
@@ -47,8 +47,8 @@ public class TypeSchemaProjectorRegistryTests
     public async Task TryProject_Returns_False_When_NoPathExists()
     {
         var registry = new TypeSchemaProjectorRegistry();
-        var source = new FakeTypedObject(new UriTypeSchema("type://wakaze.dev/tag/v2"), "tag");
-        var target = new UriTypeSchema("type://wakaze.dev/tag/v1");
+        var source = new FakeTypedObject(TagV2Schema.Schema, "tag");
+        var target = TagV1Schema.Schema;
 
         var result = registry.TryProject(source, target, out var projected);
 
@@ -60,10 +60,20 @@ public class TypeSchemaProjectorRegistryTests
     public void Register_Rejects_CrossFamilyProjectors()
     {
         var registry = new TypeSchemaProjectorRegistry();
-        var source = new UriTypeSchema("type://wakaze.dev/tag/v2");
-        var target = new UriTypeSchema("type://wakaze.dev/other/v1");
+        var source = TagV2Schema.Schema;
+        var target = OtherV1Schema.Schema;
 
         AssertThrows<ArgumentException>(() => registry.Register(source, target, value => value));
+    }
+
+    [Test]
+    public void Register_Rejects_Target_NotDeclared_In_SourceSchemaMetadata()
+    {
+        var registry = new TypeSchemaProjectorRegistry();
+
+        registry.RegisterSchema<TagV1Schema, TagFamily, SemanticScheme>();
+
+        AssertThrows<ArgumentException>(() => registry.Register(TagV1Schema.Schema, TagV2Schema.Schema, value => value));
     }
 
     private static void AssertThrows<TException>(Action action)
