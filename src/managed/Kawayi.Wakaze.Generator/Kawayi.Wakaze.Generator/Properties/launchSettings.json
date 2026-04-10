@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "DebugRoslynSourceGenerator": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "../Kawayi.Wakaze.Generator.Sample/Kawayi.Wakaze.Generator.Sample.csproj"
+    }
+  }
+}

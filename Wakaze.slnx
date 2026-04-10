@@ -31,6 +31,9 @@
         <Project Path="src/managed/Kawayi.Wakaze.Digest/Kawayi.Wakaze.Digest.csproj" />
         <Project Path="src/managed/Kawayi.Wakaze.Entity.Abstractions/Kawayi.Wakaze.Entity.Abstractions.csproj" />
         <Project Path="src/managed/Kawayi.Wakaze.Entity.Sqlite/Kawayi.Wakaze.Entity.Sqlite.csproj" />
+        <Project Path="src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Sample/Kawayi.Wakaze.Generator.Sample.csproj" />
+        <Project Path="src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests/Kawayi.Wakaze.Generator.Tests.csproj" />
+        <Project Path="src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.csproj" />
         <Project Path="src/managed/Kawayi.Wakaze.Semantics.Abstractions/Kawayi.Wakaze.Semantics.Abstractions.csproj" />
     </Folder>
     <Folder Name="/tests/" />
