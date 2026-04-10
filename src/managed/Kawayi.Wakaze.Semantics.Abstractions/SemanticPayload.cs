@@ -15,7 +15,7 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
     /// <param name="content">The serialized payload bytes.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="format"/> is empty or whitespace.</exception>
     public SemanticPayload(
-        UriTypeSchema schema,
+        SchemaId schema,
         string format,
         ReadOnlyMemory<byte> content)
     {
@@ -32,7 +32,7 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
     /// <summary>
     /// Gets the exact semantic schema of the payload.
     /// </summary>
-    public UriTypeSchema Schema { get; }
+    public SchemaId Schema { get; }
 
     /// <summary>
     /// Gets the serialization format identifier.

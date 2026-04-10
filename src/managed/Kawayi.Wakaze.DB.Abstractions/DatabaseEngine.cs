@@ -11,7 +11,7 @@ public readonly struct DatabaseEngine : IEquatable<DatabaseEngine>
     /// Initializes a new instance of the <see cref="DatabaseEngine"/> struct from a versioned schema identifier.
     /// </summary>
     /// <param name="value">The engine schema identifier.</param>
-    public DatabaseEngine(UriTypeSchema value)
+    public DatabaseEngine(SchemaId value)
     {
         Value = value;
     }
@@ -21,7 +21,7 @@ public readonly struct DatabaseEngine : IEquatable<DatabaseEngine>
     /// </summary>
     /// <param name="value">The engine schema identifier.</param>
     public DatabaseEngine(Uri value)
-        : this(new UriTypeSchema(value.AbsoluteUri))
+        : this(new SchemaId(value.AbsoluteUri))
     {
     }
 
@@ -30,14 +30,14 @@ public readonly struct DatabaseEngine : IEquatable<DatabaseEngine>
     /// </summary>
     /// <param name="value">The engine schema identifier.</param>
     public DatabaseEngine(string value)
-        : this(new UriTypeSchema(value))
+        : this(new SchemaId(value))
     {
     }
 
     /// <summary>
     /// Gets the exact schema identifier for the engine.
     /// </summary>
-    public UriTypeSchema Value { get; }
+    public SchemaId Value { get; }
 
     /// <summary>
     /// Determines whether the current engine identifier equals another identifier.
@@ -69,9 +69,9 @@ public readonly struct DatabaseEngine : IEquatable<DatabaseEngine>
     }
 
     /// <summary>
-    /// Returns the absolute typed URI text of the current engine identifier.
+    /// Returns the absolute schema identifier text of the current engine identifier.
     /// </summary>
-    /// <returns>The absolute typed URI text.</returns>
+    /// <returns>The absolute schema identifier text.</returns>
     public override string ToString()
     {
         return Value.ToString();

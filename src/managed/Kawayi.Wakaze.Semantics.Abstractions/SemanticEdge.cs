@@ -26,7 +26,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
     public SemanticEdge(
         EntityId sourceEntityId,
         EntityRevision sourceRevision,
-        UriTypeSchema ownerSchema,
+        SchemaId ownerSchema,
         string relationKey,
         EntityId targetEntityId,
         RefKind reachability,
@@ -71,7 +71,7 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
     /// <summary>
     /// Gets the exact semantic schema that owns the relation.
     /// </summary>
-    public UriTypeSchema OwnerSchema { get; }
+    public SchemaId OwnerSchema { get; }
 
     /// <summary>
     /// Gets the relation key within the owning semantic value.

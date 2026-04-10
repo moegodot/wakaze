@@ -2,12 +2,12 @@ using Kawayi.Wakaze.Abstractions;
 
 namespace Kawayi.Wakaze.Abstractions.Tests;
 
-public class TypeSchemaCompatibilityGraphTests
+public class SchemaCompatibilityGraphTests
 {
     [Test]
     public async Task CanReadAs_Returns_True_For_ExactSchema_WithoutRegistration()
     {
-        var graph = new TypeSchemaCompatibilityGraph();
+        var graph = new SchemaCompatibilityGraph();
         var schema = TagV1Schema.Schema;
 
         await Assert.That(graph.CanReadAs(schema, schema)).IsTrue();
@@ -16,7 +16,7 @@ public class TypeSchemaCompatibilityGraphTests
     [Test]
     public async Task CanReadAs_Registers_Declared_And_TransitiveEdges()
     {
-        var graph = new TypeSchemaCompatibilityGraph();
+        var graph = new SchemaCompatibilityGraph();
         var v3 = TagV3Schema.Schema;
         var v2 = TagV2Schema.Schema;
         var v1 = TagV1Schema.Schema;
@@ -32,7 +32,7 @@ public class TypeSchemaCompatibilityGraphTests
     [Test]
     public async Task CanReadAs_Returns_False_When_NoPathExists_OrFamiliesDiffer()
     {
-        var graph = new TypeSchemaCompatibilityGraph();
+        var graph = new SchemaCompatibilityGraph();
         var source = TagV2Schema.Schema;
         var missing = TagV1Schema.Schema;
         var otherFamily = OtherV1Schema.Schema;
@@ -44,7 +44,7 @@ public class TypeSchemaCompatibilityGraphTests
     [Test]
     public void Register_Rejects_CrossFamilyEdges()
     {
-        var graph = new TypeSchemaCompatibilityGraph();
+        var graph = new SchemaCompatibilityGraph();
         var source = TagV2Schema.Schema;
         var target = OtherV1Schema.Schema;
 

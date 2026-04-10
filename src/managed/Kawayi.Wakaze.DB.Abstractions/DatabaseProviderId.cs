@@ -11,7 +11,7 @@ public readonly struct DatabaseProviderId : IEquatable<DatabaseProviderId>
     /// Initializes a new instance of the <see cref="DatabaseProviderId"/> struct from a versioned schema identifier.
     /// </summary>
     /// <param name="value">The provider schema identifier.</param>
-    public DatabaseProviderId(UriTypeSchema value)
+    public DatabaseProviderId(SchemaId value)
     {
         Value = value;
     }
@@ -21,7 +21,7 @@ public readonly struct DatabaseProviderId : IEquatable<DatabaseProviderId>
     /// </summary>
     /// <param name="value">The provider schema identifier.</param>
     public DatabaseProviderId(Uri value)
-        : this(new UriTypeSchema(value.AbsoluteUri))
+        : this(new SchemaId(value.AbsoluteUri))
     {
     }
 
@@ -30,14 +30,14 @@ public readonly struct DatabaseProviderId : IEquatable<DatabaseProviderId>
     /// </summary>
     /// <param name="value">The provider schema identifier.</param>
     public DatabaseProviderId(string value)
-        : this(new UriTypeSchema(value))
+        : this(new SchemaId(value))
     {
     }
 
     /// <summary>
     /// Gets the exact provider schema identifier.
     /// </summary>
-    public UriTypeSchema Value { get; }
+    public SchemaId Value { get; }
 
     /// <summary>
     /// Determines whether the current provider identifier equals another identifier.
@@ -69,9 +69,9 @@ public readonly struct DatabaseProviderId : IEquatable<DatabaseProviderId>
     }
 
     /// <summary>
-    /// Returns the absolute typed URI text of the current provider identifier.
+    /// Returns the absolute schema identifier text of the current provider identifier.
     /// </summary>
-    /// <returns>The absolute typed URI text.</returns>
+    /// <returns>The absolute schema identifier text.</returns>
     public override string ToString()
     {
         return Value.ToString();

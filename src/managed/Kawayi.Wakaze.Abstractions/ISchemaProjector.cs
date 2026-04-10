@@ -3,7 +3,7 @@ namespace Kawayi.Wakaze.Abstractions;
 /// <summary>
 /// Projects typed objects into other compatible schemas.
 /// </summary>
-public interface ITypeSchemaProjector
+public interface ISchemaProjector
 {
     /// <summary>
     /// Determines whether a value can be projected from <paramref name="source"/> into <paramref name="target"/>.
@@ -13,7 +13,7 @@ public interface ITypeSchemaProjector
     /// <returns>
     /// <see langword="true"/> when a projection path exists; otherwise, <see langword="false"/>.
     /// </returns>
-    bool CanProject(UriTypeSchema source, UriTypeSchema target);
+    bool CanProject(SchemaId source, SchemaId target);
 
     /// <summary>
     /// Attempts to project a typed object into <paramref name="target"/>.
@@ -24,5 +24,5 @@ public interface ITypeSchemaProjector
     /// <returns>
     /// <see langword="true"/> when projection succeeds; otherwise, <see langword="false"/>.
     /// </returns>
-    bool TryProject(ITypedObject source, UriTypeSchema target, out ITypedObject? projected);
+    bool TryProject(ITypedObject source, SchemaId target, out ITypedObject? projected);
 }

@@ -2,14 +2,14 @@ using Kawayi.Wakaze.Abstractions;
 
 namespace Kawayi.Wakaze.Abstractions.Tests;
 
-public class TypeUriTests
+public class SchemaFamilyTests
 {
     [Test]
     public async Task Constructor_Accepts_ValidFamilyUris()
     {
-        var semantic = new TypeUri("semantic://wakaze.dev/tag");
-        var nested = new TypeUri("semantic://wakaze.dev/semantic/tag");
-        var database = new TypeUri("database://wakaze.dev/postgresql");
+        var semantic = new SchemaFamily("semantic://wakaze.dev/tag");
+        var nested = new SchemaFamily("semantic://wakaze.dev/semantic/tag");
+        var database = new SchemaFamily("database://wakaze.dev/postgresql");
 
         await Assert.That(semantic.Value).IsEqualTo(new Uri("semantic://wakaze.dev/tag"));
         await Assert.That(nested.Value).IsEqualTo(new Uri("semantic://wakaze.dev/semantic/tag"));
@@ -20,8 +20,8 @@ public class TypeUriTests
     [Test]
     public async Task Equality_UsesUriObjectSemantics()
     {
-        var left = new TypeUri("semantic://WAKAZE.dev/tag");
-        var right = new TypeUri("SEMANTIC://wakaze.dev/tag");
+        var left = new SchemaFamily("semantic://WAKAZE.dev/tag");
+        var right = new SchemaFamily("SEMANTIC://wakaze.dev/tag");
 
         await Assert.That(left.Equals(right)).IsTrue();
         await Assert.That(left.Equals((object)right)).IsTrue();
@@ -33,50 +33,50 @@ public class TypeUriTests
     [Test]
     public void Constructor_Rejects_MissingHost()
     {
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic:///tag"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic:///tag"));
     }
 
     [Test]
     public void Constructor_Rejects_MissingPath()
     {
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic://wakaze.dev"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic://wakaze.dev"));
     }
 
     [Test]
     public void Constructor_Rejects_Query_Fragment_Port_AndUserInfo()
     {
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic://wakaze.dev/tag?x=1"));
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic://wakaze.dev/tag#fragment"));
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic://wakaze.dev:1234/tag"));
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic://user@wakaze.dev/tag"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic://wakaze.dev/tag?x=1"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic://wakaze.dev/tag#fragment"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic://wakaze.dev:1234/tag"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic://user@wakaze.dev/tag"));
     }
 
     [Test]
     public void Constructor_Rejects_TrailingSlash()
     {
-        AssertThrows<ArgumentException>(() => new TypeUri("semantic://wakaze.dev/tag/"));
+        AssertThrows<ArgumentException>(() => new SchemaFamily("semantic://wakaze.dev/tag/"));
     }
 
     [Test]
     public void Constructor_Rejects_NullInputs()
     {
-        AssertThrows<ArgumentNullException>(() => new TypeUri((string)null!));
+        AssertThrows<ArgumentNullException>(() => new SchemaFamily((string)null!));
     }
 
     [Test]
     public async Task TryParse_Returns_ParsedValue_For_ValidFamilyUri()
     {
-        var result = TypeUri.TryParse("database://wakaze.dev/postgresql", out var typeUri);
+        var result = SchemaFamily.TryParse("database://wakaze.dev/postgresql", out var typeUri);
 
         await Assert.That(result).IsTrue();
-        await Assert.That(typeUri).IsEqualTo(new TypeUri("database://wakaze.dev/postgresql"));
+        await Assert.That(typeUri).IsEqualTo(new SchemaFamily("database://wakaze.dev/postgresql"));
     }
 
     [Test]
     public async Task TryParse_Returns_False_For_InvalidValue()
     {
-        var result = TypeUri.TryParse("semantic://wakaze.dev", out _);
-        var nullResult = TypeUri.TryParse(null, out _);
+        var result = SchemaFamily.TryParse("semantic://wakaze.dev", out _);
+        var nullResult = SchemaFamily.TryParse(null, out _);
 
         await Assert.That(result).IsFalse();
         await Assert.That(nullResult).IsFalse();

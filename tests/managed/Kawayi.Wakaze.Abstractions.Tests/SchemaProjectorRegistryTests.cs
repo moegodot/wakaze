@@ -2,12 +2,12 @@ using Kawayi.Wakaze.Abstractions;
 
 namespace Kawayi.Wakaze.Abstractions.Tests;
 
-public class TypeSchemaProjectorRegistryTests
+public class SchemaProjectorRegistryTests
 {
     [Test]
     public async Task TryProject_Uses_DirectProjector()
     {
-        var registry = new TypeSchemaProjectorRegistry();
+        var registry = new SchemaProjectorRegistry();
         var sourceSchema = TagV2Schema.Schema;
         var targetSchema = TagV1Schema.Schema;
 
@@ -19,13 +19,13 @@ public class TypeSchemaProjectorRegistryTests
 
         await Assert.That(result).IsTrue();
         await Assert.That(projected).IsNotNull();
-        await Assert.That(projected!.TypeSchema).IsEqualTo(targetSchema);
+        await Assert.That(projected!.SchemaId).IsEqualTo(targetSchema);
     }
 
     [Test]
     public async Task TryProject_Chains_MultipleProjectors()
     {
-        var registry = new TypeSchemaProjectorRegistry();
+        var registry = new SchemaProjectorRegistry();
         var v3 = TagV3Schema.Schema;
         var v2 = TagV2Schema.Schema;
         var v1 = TagV1Schema.Schema;
@@ -39,14 +39,14 @@ public class TypeSchemaProjectorRegistryTests
 
         await Assert.That(result).IsTrue();
         await Assert.That(projected).IsNotNull();
-        await Assert.That(projected!.TypeSchema).IsEqualTo(v1);
+        await Assert.That(projected!.SchemaId).IsEqualTo(v1);
         await Assert.That(((FakeTypedObject)projected).Value).IsEqualTo("tag:v2:v1");
     }
 
     [Test]
     public async Task TryProject_Returns_False_When_NoPathExists()
     {
-        var registry = new TypeSchemaProjectorRegistry();
+        var registry = new SchemaProjectorRegistry();
         var source = new FakeTypedObject(TagV2Schema.Schema, "tag");
         var target = TagV1Schema.Schema;
 
@@ -59,7 +59,7 @@ public class TypeSchemaProjectorRegistryTests
     [Test]
     public void Register_Rejects_CrossFamilyProjectors()
     {
-        var registry = new TypeSchemaProjectorRegistry();
+        var registry = new SchemaProjectorRegistry();
         var source = TagV2Schema.Schema;
         var target = OtherV1Schema.Schema;
 
@@ -69,7 +69,7 @@ public class TypeSchemaProjectorRegistryTests
     [Test]
     public void Register_Rejects_Target_NotDeclared_In_SourceSchemaMetadata()
     {
-        var registry = new TypeSchemaProjectorRegistry();
+        var registry = new SchemaProjectorRegistry();
 
         registry.RegisterSchema<TagV1Schema, TagFamily, SemanticScheme>();
 
@@ -89,5 +89,5 @@ public class TypeSchemaProjectorRegistryTests
         }
     }
 
-    private sealed record FakeTypedObject(UriTypeSchema TypeSchema, string Value) : ITypedObject;
+    private sealed record FakeTypedObject(SchemaId SchemaId, string Value) : ITypedObject;
 }

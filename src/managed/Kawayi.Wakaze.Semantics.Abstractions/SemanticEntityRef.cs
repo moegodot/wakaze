@@ -12,4 +12,4 @@ namespace Kawayi.Wakaze.Semantics.Abstractions;
 /// </param>
 public readonly record struct SemanticEntityRef(
     EntityId Target,
-    TypeUri? ExpectedPrimaryType = null);
+    SchemaFamily? ExpectedPrimaryType = null);

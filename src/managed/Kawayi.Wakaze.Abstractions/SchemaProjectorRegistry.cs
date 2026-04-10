@@ -3,10 +3,10 @@ namespace Kawayi.Wakaze.Abstractions;
 /// <summary>
 /// Stores explicitly registered schema projectors and resolves chained projections transitively.
 /// </summary>
-public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
+public sealed class SchemaProjectorRegistry : ISchemaProjector
 {
-    private readonly Dictionary<UriTypeSchema, Dictionary<UriTypeSchema, Func<ITypedObject, ITypedObject>>> _edges = [];
-    private readonly Dictionary<UriTypeSchema, HashSet<UriTypeSchema>> _declaredProjectableTargets = [];
+    private readonly Dictionary<SchemaId, Dictionary<SchemaId, Func<ITypedObject, ITypedObject>>> _edges = [];
+    private readonly Dictionary<SchemaId, HashSet<SchemaId>> _declaredProjectableTargets = [];
 
     /// <summary>
     /// Registers a direct projector from <paramref name="source"/> to <paramref name="target"/>.
@@ -19,8 +19,8 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
     /// Thrown when the schemas do not belong to the same family.
     /// </exception>
     public void Register(
-        UriTypeSchema source,
-        UriTypeSchema target,
+        SchemaId source,
+        SchemaId target,
         Func<ITypedObject, ITypedObject> projector)
     {
         ArgumentNullException.ThrowIfNull(projector);
@@ -49,10 +49,10 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
     /// <typeparam name="TScheme">The source scheme definition.</typeparam>
     public void RegisterSchema<TSchema, TFamily, TScheme>()
         where TSchema : ISchemaDefinition<TFamily, TScheme>
-        where TFamily : ITypeFamilyDefinition<TScheme>
-        where TScheme : IUriSchemeDefinition
+        where TFamily : ISchemaFamilyDefinition<TScheme>
+        where TScheme : ISchemaUriSchemeDefinition
     {
-        var targets = new HashSet<UriTypeSchema>(TSchema.ProjectableTargets);
+        var targets = new HashSet<SchemaId>(TSchema.ProjectableTargets);
 
         foreach (var target in targets)
         {
@@ -75,30 +75,30 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
     public void Register<TSourceSchema, TSourceFamily, TSourceScheme, TTargetSchema, TTargetFamily, TTargetScheme>(
         Func<ITypedObject, ITypedObject> projector)
         where TSourceSchema : ISchemaDefinition<TSourceFamily, TSourceScheme>
-        where TSourceFamily : ITypeFamilyDefinition<TSourceScheme>
-        where TSourceScheme : IUriSchemeDefinition
+        where TSourceFamily : ISchemaFamilyDefinition<TSourceScheme>
+        where TSourceScheme : ISchemaUriSchemeDefinition
         where TTargetSchema : ISchemaDefinition<TTargetFamily, TTargetScheme>
-        where TTargetFamily : ITypeFamilyDefinition<TTargetScheme>
-        where TTargetScheme : IUriSchemeDefinition
+        where TTargetFamily : ISchemaFamilyDefinition<TTargetScheme>
+        where TTargetScheme : ISchemaUriSchemeDefinition
     {
         RegisterSchema<TSourceSchema, TSourceFamily, TSourceScheme>();
         Register(TSourceSchema.Schema, TTargetSchema.Schema, projector);
     }
 
     /// <inheritdoc />
-    public bool CanProject(UriTypeSchema source, UriTypeSchema target)
+    public bool CanProject(SchemaId source, SchemaId target)
     {
         if (source == target)
         {
             return true;
         }
 
-        if (source.TypeUri != target.TypeUri)
+        if (source.Family != target.Family)
         {
             return false;
         }
 
-        return TypeSchemaGraphSearch.TryFindPath(
+        return SchemaGraphSearch.TryFindPath(
             source,
             target,
             current => _edges.TryGetValue(current, out var neighbors) ? neighbors.Keys : [],
@@ -106,24 +106,24 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
     }
 
     /// <inheritdoc />
-    public bool TryProject(ITypedObject source, UriTypeSchema target, out ITypedObject? projected)
+    public bool TryProject(ITypedObject source, SchemaId target, out ITypedObject? projected)
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        if (source.TypeSchema == target)
+        if (source.SchemaId == target)
         {
             projected = source;
             return true;
         }
 
-        if (source.TypeSchema.TypeUri != target.TypeUri)
+        if (source.SchemaId.Family != target.Family)
         {
             projected = null;
             return false;
         }
 
-        if (!TypeSchemaGraphSearch.TryFindPath(
-                source.TypeSchema,
+        if (!SchemaGraphSearch.TryFindPath(
+                source.SchemaId,
                 target,
                 current => _edges.TryGetValue(current, out var neighbors) ? neighbors.Keys : [],
                 out var previous))
@@ -132,18 +132,18 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
             return false;
         }
 
-        var path = BuildPath(source.TypeSchema, target, previous);
+        var path = BuildPath(source.SchemaId, target, previous);
 
         ITypedObject current = source;
         foreach (var edge in path)
         {
             var next = edge.Projector(current) ??
-                       throw new InvalidOperationException("A registered type schema projector returned null.");
+                       throw new InvalidOperationException("A registered schema projector returned null.");
 
-            if (next.TypeSchema != edge.Target)
+            if (next.SchemaId != edge.Target)
             {
                 throw new InvalidOperationException(
-                    $"A registered type schema projector declared target '{edge.Target}' but returned '{next.TypeSchema}'.");
+                    $"A registered schema projector declared target '{edge.Target}' but returned '{next.SchemaId}'.");
             }
 
             current = next;
@@ -153,12 +153,12 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
         return true;
     }
 
-    private IReadOnlyList<(UriTypeSchema Target, Func<ITypedObject, ITypedObject> Projector)> BuildPath(
-        UriTypeSchema source,
-        UriTypeSchema target,
-        IReadOnlyDictionary<UriTypeSchema, UriTypeSchema> previous)
+    private IReadOnlyList<(SchemaId Target, Func<ITypedObject, ITypedObject> Projector)> BuildPath(
+        SchemaId source,
+        SchemaId target,
+        IReadOnlyDictionary<SchemaId, SchemaId> previous)
     {
-        var result = new List<(UriTypeSchema Target, Func<ITypedObject, ITypedObject> Projector)>();
+        var result = new List<(SchemaId Target, Func<ITypedObject, ITypedObject> Projector)>();
         var current = target;
 
         while (current != source)
@@ -173,15 +173,15 @@ public sealed class TypeSchemaProjectorRegistry : ITypeSchemaProjector
         return result;
     }
 
-    private static void EnsureSameFamily(UriTypeSchema source, UriTypeSchema target)
+    private static void EnsureSameFamily(SchemaId source, SchemaId target)
     {
-        if (source.TypeUri != target.TypeUri)
+        if (source.Family != target.Family)
         {
-            throw new ArgumentException("Projection edges must stay within the same type family.");
+            throw new ArgumentException("Projection edges must stay within the same schema family.");
         }
     }
 
-    private void EnsureDeclaredProjectableTarget(UriTypeSchema source, UriTypeSchema target)
+    private void EnsureDeclaredProjectableTarget(SchemaId source, SchemaId target)
     {
         if (!_declaredProjectableTargets.TryGetValue(source, out var declaredTargets))
         {

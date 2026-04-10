@@ -3,16 +3,16 @@ namespace Kawayi.Wakaze.Abstractions;
 /// <summary>
 /// Represents a positive schema version number.
 /// </summary>
-public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVersion>
+public readonly struct SchemaVersion : IEquatable<SchemaVersion>, IComparable<SchemaVersion>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="TypeVersion"/> struct.
+    /// Initializes a new instance of the <see cref="SchemaVersion"/> struct.
     /// </summary>
     /// <param name="value">The positive schema version number.</param>
     /// <exception cref="ArgumentOutOfRangeException">
     /// Thrown when <paramref name="value"/> is zero.
     /// </exception>
-    public TypeVersion(uint value)
+    public SchemaVersion(uint value)
     {
         if (value == 0)
         {
@@ -34,7 +34,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// <returns>
     /// A signed integer that indicates the relative order of the versions.
     /// </returns>
-    public int CompareTo(TypeVersion other)
+    public int CompareTo(SchemaVersion other)
     {
         return Value.CompareTo(other.Value);
     }
@@ -44,7 +44,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// </summary>
     /// <param name="other">The other version.</param>
     /// <returns><see langword="true"/> when both versions are equal; otherwise, <see langword="false"/>.</returns>
-    public bool Equals(TypeVersion other)
+    public bool Equals(SchemaVersion other)
     {
         return Value == other.Value;
     }
@@ -56,7 +56,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// <returns><see langword="true"/> when the object is an equal version; otherwise, <see langword="false"/>.</returns>
     public override bool Equals(object? obj)
     {
-        return obj is TypeVersion other && Equals(other);
+        return obj is SchemaVersion other && Equals(other);
     }
 
     /// <summary>
@@ -83,7 +83,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// <param name="left">The first version.</param>
     /// <param name="right">The second version.</param>
     /// <returns><see langword="true"/> when both versions are equal; otherwise, <see langword="false"/>.</returns>
-    public static bool operator ==(TypeVersion left, TypeVersion right)
+    public static bool operator ==(SchemaVersion left, SchemaVersion right)
     {
         return left.Equals(right);
     }
@@ -94,7 +94,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// <param name="left">The first version.</param>
     /// <param name="right">The second version.</param>
     /// <returns><see langword="true"/> when the versions are not equal; otherwise, <see langword="false"/>.</returns>
-    public static bool operator !=(TypeVersion left, TypeVersion right)
+    public static bool operator !=(SchemaVersion left, SchemaVersion right)
     {
         return !left.Equals(right);
     }
@@ -105,7 +105,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// <param name="left">The first version.</param>
     /// <param name="right">The second version.</param>
     /// <returns><see langword="true"/> when <paramref name="left"/> is less than <paramref name="right"/>.</returns>
-    public static bool operator <(TypeVersion left, TypeVersion right)
+    public static bool operator <(SchemaVersion left, SchemaVersion right)
     {
         return left.Value < right.Value;
     }
@@ -116,12 +116,12 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
     /// <param name="left">The first version.</param>
     /// <param name="right">The second version.</param>
     /// <returns><see langword="true"/> when <paramref name="left"/> is greater than <paramref name="right"/>.</returns>
-    public static bool operator >(TypeVersion left, TypeVersion right)
+    public static bool operator >(SchemaVersion left, SchemaVersion right)
     {
         return left.Value > right.Value;
     }
 
-    internal static bool TryParseSegment(string value, out TypeVersion version)
+    internal static bool TryParseSegment(string value, out SchemaVersion version)
     {
         version = default;
 
@@ -154,7 +154,7 @@ public readonly struct TypeVersion : IEquatable<TypeVersion>, IComparable<TypeVe
             return false;
         }
 
-        version = new TypeVersion(parsed);
+        version = new SchemaVersion(parsed);
         return true;
     }
 }

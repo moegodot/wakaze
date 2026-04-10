@@ -10,12 +10,12 @@ public interface ISemanticCodec
     /// <summary>
     /// Gets the native schema written by the codec.
     /// </summary>
-    UriTypeSchema Schema { get; }
+    SchemaId Schema { get; }
 
     /// <summary>
     /// Gets the exact schemas that the codec can deserialize.
     /// </summary>
-    IReadOnlySet<UriTypeSchema> ReadableSchemas { get; }
+    IReadOnlySet<SchemaId> ReadableSchemas { get; }
 
     /// <summary>
     /// Deserializes a semantic payload into an immutable semantic value.

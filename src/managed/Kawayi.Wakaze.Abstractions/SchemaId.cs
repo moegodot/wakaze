@@ -1,56 +1,56 @@
 namespace Kawayi.Wakaze.Abstractions;
 
 /// <summary>
-/// Represents an exact versioned type schema identity.
+/// Represents an exact schema identifier.
 /// </summary>
-public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
+public readonly struct SchemaId : IEquatable<SchemaId>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="UriTypeSchema"/> struct.
+    /// Initializes a new instance of the <see cref="SchemaId"/> struct.
     /// </summary>
-    /// <param name="typeUri">The versionless type family identifier.</param>
+    /// <param name="family">The versionless schema family identifier.</param>
     /// <param name="version">The exact schema version.</param>
-    public UriTypeSchema(TypeUri typeUri, TypeVersion version)
+    public SchemaId(SchemaFamily family, SchemaVersion version)
     {
-        TypeUri = typeUri;
+        Family = family;
         Version = version;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UriTypeSchema"/> struct from a versioned URI string.
+    /// Initializes a new instance of the <see cref="SchemaId"/> struct from a versioned schema identifier string.
     /// </summary>
     /// <param name="value">The versioned schema URI string.</param>
-    public UriTypeSchema(string value)
+    public SchemaId(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         if (!TryParse(value, out var parsed))
         {
-            throw new ArgumentException("The value is not a valid versioned type schema URI.", nameof(value));
+            throw new ArgumentException("The value is not a valid schema identifier.", nameof(value));
         }
 
-        TypeUri = parsed.TypeUri;
+        Family = parsed.Family;
         Version = parsed.Version;
     }
 
     /// <summary>
-    /// Gets the versionless type family identifier.
+    /// Gets the versionless schema family identifier.
     /// </summary>
-    public TypeUri TypeUri { get; }
+    public SchemaFamily Family { get; }
 
     /// <summary>
     /// Gets the exact schema version.
     /// </summary>
-    public TypeVersion Version { get; }
+    public SchemaVersion Version { get; }
 
     /// <summary>
     /// Determines whether the current schema equals another schema.
     /// </summary>
     /// <param name="other">The other schema.</param>
     /// <returns><see langword="true"/> when both schemas are equal; otherwise, <see langword="false"/>.</returns>
-    public bool Equals(UriTypeSchema other)
+    public bool Equals(SchemaId other)
     {
-        return TypeUri.Equals(other.TypeUri) && Version.Equals(other.Version);
+        return Family.Equals(other.Family) && Version.Equals(other.Version);
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
     /// <returns><see langword="true"/> when the object is an equal schema; otherwise, <see langword="false"/>.</returns>
     public override bool Equals(object? obj)
     {
-        return obj is UriTypeSchema other && Equals(other);
+        return obj is SchemaId other && Equals(other);
     }
 
     /// <summary>
@@ -69,7 +69,7 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
     /// <returns>A hash code for the current schema.</returns>
     public override int GetHashCode()
     {
-        return HashCode.Combine(TypeUri, Version);
+        return HashCode.Combine(Family, Version);
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
     /// <returns>The canonical versioned URI text.</returns>
     public override string ToString()
     {
-        return $"{TypeUri}/{Version}";
+        return $"{Family}/{Version}";
     }
 
     /// <summary>
@@ -87,7 +87,7 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
     /// <param name="left">The first schema.</param>
     /// <param name="right">The second schema.</param>
     /// <returns><see langword="true"/> when both schemas are equal; otherwise, <see langword="false"/>.</returns>
-    public static bool operator ==(UriTypeSchema left, UriTypeSchema right)
+    public static bool operator ==(SchemaId left, SchemaId right)
     {
         return left.Equals(right);
     }
@@ -98,21 +98,21 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
     /// <param name="left">The first schema.</param>
     /// <param name="right">The second schema.</param>
     /// <returns><see langword="true"/> when the schemas are not equal; otherwise, <see langword="false"/>.</returns>
-    public static bool operator !=(UriTypeSchema left, UriTypeSchema right)
+    public static bool operator !=(SchemaId left, SchemaId right)
     {
         return !left.Equals(right);
     }
 
     /// <summary>
-    /// Attempts to parse a versioned type schema URI from text.
+    /// Attempts to parse a schema identifier from text.
     /// </summary>
     /// <param name="value">The URI string to parse.</param>
     /// <param name="schema">
-    /// When this method returns <see langword="true"/>, contains the parsed versioned schema;
+    /// When this method returns <see langword="true"/>, contains the parsed schema identifier;
     /// otherwise, the default value.
     /// </param>
     /// <returns><see langword="true"/> when parsing succeeds; otherwise, <see langword="false"/>.</returns>
-    public static bool TryParse(string? value, out UriTypeSchema schema)
+    public static bool TryParse(string? value, out SchemaId schema)
     {
         schema = default;
 
@@ -129,13 +129,13 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
         return TryParse(uri, out schema);
     }
 
-    private static bool TryParse(Uri value, out UriTypeSchema schema)
+    private static bool TryParse(Uri value, out SchemaId schema)
     {
         schema = default;
 
         try
         {
-            TypeUri.ValidateFamilyUri(value);
+            SchemaFamily.ValidateFamilyUri(value);
         }
         catch (ArgumentException)
         {
@@ -153,7 +153,7 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
         }
 
         var versionSegment = pathSegments[^1];
-        if (!TypeVersion.TryParseSegment(versionSegment, out var version))
+        if (!SchemaVersion.TryParseSegment(versionSegment, out var version))
         {
             return false;
         }
@@ -165,8 +165,8 @@ public readonly struct UriTypeSchema : IEquatable<UriTypeSchema>
             Path = string.Join("/", pathSegments[..^1].Select(Uri.EscapeDataString))
         };
 
-        var typeUri = TypeUri.FromValidatedUri(builder.Uri);
-        schema = new UriTypeSchema(typeUri, version);
+        var family = SchemaFamily.FromValidatedUri(builder.Uri);
+        schema = new SchemaId(family, version);
         return true;
     }
 }

@@ -3,9 +3,9 @@ namespace Kawayi.Wakaze.Abstractions;
 /// <summary>
 /// Stores explicitly registered schema compatibility edges and resolves them transitively.
 /// </summary>
-public sealed class TypeSchemaCompatibilityGraph : ITypeSchemaCompatibility
+public sealed class SchemaCompatibilityGraph : ISchemaCompatibility
 {
-    private readonly Dictionary<UriTypeSchema, HashSet<UriTypeSchema>> _edges = [];
+    private readonly Dictionary<SchemaId, HashSet<SchemaId>> _edges = [];
 
     /// <summary>
     /// Registers a directed compatibility edge from <paramref name="source"/> to <paramref name="target"/>.
@@ -15,7 +15,7 @@ public sealed class TypeSchemaCompatibilityGraph : ITypeSchemaCompatibility
     /// <exception cref="ArgumentException">
     /// Thrown when the schemas do not belong to the same family.
     /// </exception>
-    public void Register(UriTypeSchema source, UriTypeSchema target)
+    public void Register(SchemaId source, SchemaId target)
     {
         EnsureSameFamily(source, target);
 
@@ -41,8 +41,8 @@ public sealed class TypeSchemaCompatibilityGraph : ITypeSchemaCompatibility
     /// <typeparam name="TScheme">The source scheme definition.</typeparam>
     public void Register<TSchema, TFamily, TScheme>()
         where TSchema : ISchemaDefinition<TFamily, TScheme>
-        where TFamily : ITypeFamilyDefinition<TScheme>
-        where TScheme : IUriSchemeDefinition
+        where TFamily : ISchemaFamilyDefinition<TScheme>
+        where TScheme : ISchemaUriSchemeDefinition
     {
         foreach (var target in TSchema.CompatibleTargets)
         {
@@ -51,30 +51,30 @@ public sealed class TypeSchemaCompatibilityGraph : ITypeSchemaCompatibility
     }
 
     /// <inheritdoc />
-    public bool CanReadAs(UriTypeSchema source, UriTypeSchema target)
+    public bool CanReadAs(SchemaId source, SchemaId target)
     {
         if (source == target)
         {
             return true;
         }
 
-        if (source.TypeUri != target.TypeUri)
+        if (source.Family != target.Family)
         {
             return false;
         }
 
-        return TypeSchemaGraphSearch.TryFindPath(
+        return SchemaGraphSearch.TryFindPath(
             source,
             target,
             current => _edges.TryGetValue(current, out var neighbors) ? neighbors : [],
             out _);
     }
 
-    private static void EnsureSameFamily(UriTypeSchema source, UriTypeSchema target)
+    private static void EnsureSameFamily(SchemaId source, SchemaId target)
     {
-        if (source.TypeUri != target.TypeUri)
+        if (source.Family != target.Family)
         {
-            throw new ArgumentException("Compatibility edges must stay within the same type family.");
+            throw new ArgumentException("Compatibility edges must stay within the same schema family.");
         }
     }
 }

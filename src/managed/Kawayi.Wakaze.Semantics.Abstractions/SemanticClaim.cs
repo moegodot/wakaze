@@ -9,7 +9,7 @@ namespace Kawayi.Wakaze.Semantics.Abstractions;
 /// </summary>
 /// <remarks>
 /// A semantic claim contains one primary semantic value and zero or more extension values
-/// attached to the same entity. Extension values are keyed by type family, so only one version
+/// attached to the same entity. Extension values are keyed by schema family, so only one version
 /// of a family can be present at a time. Extension values are facets of the same entity and do
 /// not represent nested semantic claims for referenced entities.
 /// </remarks>
@@ -26,7 +26,7 @@ public sealed class SemanticClaim
         : this(
             basisRevision,
             primaryValue,
-            ImmutableDictionary<TypeUri, ISemanticValue>.Empty)
+            ImmutableDictionary<SchemaFamily, ISemanticValue>.Empty)
     {
     }
 
@@ -47,7 +47,7 @@ public sealed class SemanticClaim
     public SemanticClaim(
         EntityRevision basisRevision,
         ISemanticValue primaryValue,
-        ImmutableDictionary<TypeUri, ISemanticValue> extensions)
+        ImmutableDictionary<SchemaFamily, ISemanticValue> extensions)
     {
         ArgumentNullException.ThrowIfNull(primaryValue);
 
@@ -69,11 +69,11 @@ public sealed class SemanticClaim
     /// <summary>
     /// Gets the additional semantic facets attached to the same entity, keyed by family.
     /// </summary>
-    public ImmutableDictionary<TypeUri, ISemanticValue> Extensions { get; }
+    public ImmutableDictionary<SchemaFamily, ISemanticValue> Extensions { get; }
 
-    private static ImmutableDictionary<TypeUri, ISemanticValue> ValidateExtensions(
+    private static ImmutableDictionary<SchemaFamily, ISemanticValue> ValidateExtensions(
         ISemanticValue primaryValue,
-        ImmutableDictionary<TypeUri, ISemanticValue> extensions)
+        ImmutableDictionary<SchemaFamily, ISemanticValue> extensions)
     {
         ArgumentNullException.ThrowIfNull(extensions);
 
@@ -82,12 +82,12 @@ public sealed class SemanticClaim
             if (pair.Value is null)
                 throw new ArgumentException("Semantic extensions cannot contain null values.", nameof(extensions));
 
-            if (pair.Key != pair.Value.TypeSchema.TypeUri)
+            if (pair.Key != pair.Value.SchemaId.Family)
                 throw new ArgumentException(
                     "Semantic extension keys must match the semantic value family.",
                     nameof(extensions));
 
-            if (pair.Key == primaryValue.TypeSchema.TypeUri)
+            if (pair.Key == primaryValue.SchemaId.Family)
                 throw new ArgumentException(
                     "Semantic extensions cannot include the primary semantic value family.",
                     nameof(extensions));

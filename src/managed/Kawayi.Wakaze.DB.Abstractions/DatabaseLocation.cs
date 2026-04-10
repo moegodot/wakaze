@@ -41,7 +41,7 @@ public sealed record DatabaseOpaqueLocation : DatabaseLocation
     /// <param name="description">An optional human-readable description of the location.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="format"/> is empty or whitespace.</exception>
     public DatabaseOpaqueLocation(
-        UriTypeSchema schema,
+        SchemaId schema,
         string format,
         ReadOnlyMemory<byte> payload,
         string? description = null)
@@ -61,7 +61,7 @@ public sealed record DatabaseOpaqueLocation : DatabaseLocation
     /// <summary>
     /// Gets the exact schema of the opaque location document.
     /// </summary>
-    public UriTypeSchema Schema { get; }
+    public SchemaId Schema { get; }
 
     /// <summary>
     /// Gets the payload format identifier.

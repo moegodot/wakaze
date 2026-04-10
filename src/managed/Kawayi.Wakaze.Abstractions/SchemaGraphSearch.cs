@@ -1,18 +1,18 @@
 namespace Kawayi.Wakaze.Abstractions;
 
-internal static class TypeSchemaGraphSearch
+internal static class SchemaGraphSearch
 {
     public static bool TryFindPath(
-        UriTypeSchema source,
-        UriTypeSchema target,
-        Func<UriTypeSchema, IEnumerable<UriTypeSchema>> getNeighbors,
-        out Dictionary<UriTypeSchema, UriTypeSchema> previous)
+        SchemaId source,
+        SchemaId target,
+        Func<SchemaId, IEnumerable<SchemaId>> getNeighbors,
+        out Dictionary<SchemaId, SchemaId> previous)
     {
         ArgumentNullException.ThrowIfNull(getNeighbors);
 
         previous = [];
-        var visited = new HashSet<UriTypeSchema> { source };
-        var queue = new Queue<UriTypeSchema>();
+        var visited = new HashSet<SchemaId> { source };
+        var queue = new Queue<SchemaId>();
         queue.Enqueue(source);
 
         while (queue.Count > 0)

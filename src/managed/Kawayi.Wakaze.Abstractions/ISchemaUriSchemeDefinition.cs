@@ -1,9 +1,9 @@
 namespace Kawayi.Wakaze.Abstractions;
 
 /// <summary>
-/// Defines a typed URI scheme category such as <c>semantic</c> or <c>database</c>.
+/// Defines a schema URI scheme category such as <c>semantic</c> or <c>database</c>.
 /// </summary>
-public interface IUriSchemeDefinition
+public interface ISchemaUriSchemeDefinition
 {
     /// <summary>
     /// Gets the URI scheme identifier.

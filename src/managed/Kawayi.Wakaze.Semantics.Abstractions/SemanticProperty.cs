@@ -26,7 +26,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
     public SemanticProperty(
         EntityId entityId,
         EntityRevision revision,
-        UriTypeSchema ownerSchema,
+        SchemaId ownerSchema,
         string propertyKey,
         SemanticPropertyValueKind valueKind,
         string canonicalValue,
@@ -76,7 +76,7 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
     /// <summary>
     /// Gets the exact semantic schema that owns the property.
     /// </summary>
-    public UriTypeSchema OwnerSchema { get; }
+    public SchemaId OwnerSchema { get; }
 
     /// <summary>
     /// Gets the property key within the owning semantic value.

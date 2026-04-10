@@ -8,7 +8,7 @@ public class DatabaseSchemaIdentifierTests
     [Test]
     public async Task DatabaseIdentifiers_Accept_DatabaseSchemeUris()
     {
-        var schema = new UriTypeSchema("database://wakaze.dev/postgresql/v1");
+        var schema = new SchemaId("database://wakaze.dev/postgresql/v1");
         var providerId = new DatabaseProviderId(schema);
         var engine = new DatabaseEngine("database://wakaze.dev/postgresql/v1");
 

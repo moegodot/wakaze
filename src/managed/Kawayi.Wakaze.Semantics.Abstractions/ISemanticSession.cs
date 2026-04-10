@@ -34,7 +34,7 @@ public interface ISemanticSession
     /// </param>
     /// <returns><see langword="true"/> when a matching semantic value is present; otherwise, <see langword="false"/>.</returns>
     bool TryGet(
-        TypeUri family,
+        SchemaFamily family,
         [NotNullWhen(true)] out ISemanticValue? value);
 
     /// <summary>
@@ -48,7 +48,7 @@ public interface ISemanticSession
     /// </param>
     /// <returns><see langword="true"/> when a matching semantic value is present; otherwise, <see langword="false"/>.</returns>
     bool TryGet<TValue>(
-        TypeUri family,
+        SchemaFamily family,
         [NotNullWhen(true)] out TValue? value)
         where TValue : class, ISemanticValue;
 
@@ -62,7 +62,7 @@ public interface ISemanticSession
     /// </param>
     /// <returns><see langword="true"/> when a compatible semantic value is present; otherwise, <see langword="false"/>.</returns>
     bool TryGetCompatible(
-        UriTypeSchema targetSchema,
+        SchemaId targetSchema,
         [NotNullWhen(true)] out ISemanticValue? value);
 
     /// <summary>
@@ -77,7 +77,7 @@ public interface ISemanticSession
     /// </param>
     /// <returns><see langword="true"/> when a compatible semantic value is present; otherwise, <see langword="false"/>.</returns>
     bool TryGetCompatible<TValue>(
-        UriTypeSchema targetSchema,
+        SchemaId targetSchema,
         [NotNullWhen(true)] out TValue? value)
         where TValue : class, ISemanticValue;
 
@@ -103,7 +103,7 @@ public interface ISemanticSession
     /// <returns>
     /// <see langword="true"/> when an extension was removed; otherwise, <see langword="false"/>.
     /// </returns>
-    bool RemoveExtension(TypeUri family);
+    bool RemoveExtension(SchemaFamily family);
 
     /// <summary>
     /// Applies a semantic command to the session.

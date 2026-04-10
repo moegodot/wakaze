@@ -1,9 +1,9 @@
 namespace Kawayi.Wakaze.Abstractions;
 
 /// <summary>
-/// Resolves compatibility relationships between versioned type schemas.
+/// Resolves compatibility relationships between exact schema identifiers.
 /// </summary>
-public interface ITypeSchemaCompatibility
+public interface ISchemaCompatibility
 {
     /// <summary>
     /// Determines whether a value produced as <paramref name="source"/> can be consumed as <paramref name="target"/>.
@@ -13,5 +13,5 @@ public interface ITypeSchemaCompatibility
     /// <returns>
     /// <see langword="true"/> when the source schema can be read as the target schema; otherwise, <see langword="false"/>.
     /// </returns>
-    bool CanReadAs(UriTypeSchema source, UriTypeSchema target);
+    bool CanReadAs(SchemaId source, SchemaId target);
 }

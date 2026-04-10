@@ -6,7 +6,7 @@ namespace Kawayi.Wakaze.Abstractions;
 public interface ISchemaDefinitionMarker
 {
     /// <summary>
-    /// Gets the exact schema URI.
+    /// Gets the exact schema identifier.
     /// </summary>
-    static abstract UriTypeSchema Schema { get; }
+    static abstract SchemaId Schema { get; }
 }

@@ -1,35 +1,35 @@
 namespace Kawayi.Wakaze.Abstractions;
 
 /// <summary>
-/// Represents a validated versionless type family URI.
+/// Represents a validated versionless schema family identifier.
 /// </summary>
 /// <remarks>
-/// A type family URI identifies a contract family such as <c>semantic://example.com/tag</c>.
-/// Version information is modeled separately through <see cref="UriTypeSchema"/>.
+/// A schema family identifies a contract family such as <c>semantic://example.com/tag</c>.
+/// Version information is modeled separately through <see cref="SchemaId"/>.
 /// Query, fragment, explicit port, user info, and a trailing slash are not permitted.
 /// </remarks>
-public readonly struct TypeUri : IEquatable<TypeUri>
+public readonly struct SchemaFamily : IEquatable<SchemaFamily>
 {
-    private TypeUri(Uri value)
+    private SchemaFamily(Uri value)
     {
         Value = value;
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="TypeUri"/> struct from a URI string.
+    /// Initializes a new instance of the <see cref="SchemaFamily"/> struct from a URI string.
     /// </summary>
     /// <param name="value">The URI string to parse and validate.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="value"/> is not a valid absolute URI
-    /// or does not satisfy typed URI constraints.
+    /// or does not satisfy schema family constraints.
     /// </exception>
-    public TypeUri(string value)
+    public SchemaFamily(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
 
         if (!TryParse(value, out var parsed))
-            throw new ArgumentException("The value is not a valid type family URI.", nameof(value));
+            throw new ArgumentException("The value is not a valid schema family identifier.", nameof(value));
 
         Value = parsed.Value;
     }
@@ -40,36 +40,36 @@ public readonly struct TypeUri : IEquatable<TypeUri>
     public Uri Value { get; }
 
     /// <summary>
-    /// Determines whether the current value is equal to another typed URI.
+    /// Determines whether the current value is equal to another schema family.
     /// </summary>
-    /// <param name="other">The other typed URI to compare with.</param>
+    /// <param name="other">The other schema family to compare with.</param>
     /// <returns><see langword="true"/> when both values are equal; otherwise, <see langword="false"/>.</returns>
-    public bool Equals(TypeUri other)
+    public bool Equals(SchemaFamily other)
     {
         return EqualityComparer<Uri>.Default.Equals(Value, other.Value);
     }
 
     /// <summary>
-    /// Determines whether the specified object is equal to the current typed URI.
+    /// Determines whether the specified object is equal to the current schema family.
     /// </summary>
     /// <param name="obj">The object to compare with the current value.</param>
-    /// <returns><see langword="true"/> when the specified object is an equal <see cref="TypeUri"/>; otherwise, <see langword="false"/>.</returns>
+    /// <returns><see langword="true"/> when the specified object is an equal <see cref="SchemaFamily"/>; otherwise, <see langword="false"/>.</returns>
     public override bool Equals(object? obj)
     {
-        return obj is TypeUri other && Equals(other);
+        return obj is SchemaFamily other && Equals(other);
     }
 
     /// <summary>
-    /// Returns a hash code for the current family URI.
+    /// Returns a hash code for the current schema family.
     /// </summary>
-    /// <returns>A hash code for the current family URI.</returns>
+    /// <returns>A hash code for the current schema family.</returns>
     public override int GetHashCode()
     {
         return Value?.GetHashCode() ?? 0;
     }
 
     /// <summary>
-    /// Returns the absolute URI text for the current family URI.
+    /// Returns the absolute URI text for the current schema family.
     /// </summary>
     /// <returns>The absolute URI text.</returns>
     public override string ToString()
@@ -78,39 +78,39 @@ public readonly struct TypeUri : IEquatable<TypeUri>
     }
 
     /// <summary>
-    /// Compares two typed URIs for equality.
+    /// Compares two schema families for equality.
     /// </summary>
-    /// <param name="left">The first typed URI.</param>
-    /// <param name="right">The second typed URI.</param>
-    /// <returns><see langword="true"/> when the typed URIs are equal; otherwise, <see langword="false"/>.</returns>
-    public static bool operator ==(TypeUri left, TypeUri right)
+    /// <param name="left">The first schema family.</param>
+    /// <param name="right">The second schema family.</param>
+    /// <returns><see langword="true"/> when the schema families are equal; otherwise, <see langword="false"/>.</returns>
+    public static bool operator ==(SchemaFamily left, SchemaFamily right)
     {
         return left.Equals(right);
     }
 
     /// <summary>
-    /// Compares two typed URIs for inequality.
+    /// Compares two schema families for inequality.
     /// </summary>
-    /// <param name="left">The first typed URI.</param>
-    /// <param name="right">The second typed URI.</param>
-    /// <returns><see langword="true"/> when the typed URIs are not equal; otherwise, <see langword="false"/>.</returns>
-    public static bool operator !=(TypeUri left, TypeUri right)
+    /// <param name="left">The first schema family.</param>
+    /// <param name="right">The second schema family.</param>
+    /// <returns><see langword="true"/> when the schema families are not equal; otherwise, <see langword="false"/>.</returns>
+    public static bool operator !=(SchemaFamily left, SchemaFamily right)
     {
         return !left.Equals(right);
     }
 
     /// <summary>
-    /// Attempts to parse a type family URI from text.
+    /// Attempts to parse a schema family identifier from text.
     /// </summary>
     /// <param name="value">The URI string to parse.</param>
-    /// <param name="typeUri">
-    /// When this method returns <see langword="true"/>, contains the parsed type family URI;
+    /// <param name="family">
+    /// When this method returns <see langword="true"/>, contains the parsed schema family;
     /// otherwise, the default value.
     /// </param>
     /// <returns><see langword="true"/> when parsing succeeds; otherwise, <see langword="false"/>.</returns>
-    public static bool TryParse(string? value, out TypeUri typeUri)
+    public static bool TryParse(string? value, out SchemaFamily family)
     {
-        typeUri = default;
+        family = default;
 
         if (value is null) return false;
 
@@ -125,13 +125,13 @@ public readonly struct TypeUri : IEquatable<TypeUri>
             return false;
         }
 
-        typeUri = new TypeUri(uri);
+        family = new SchemaFamily(uri);
         return true;
     }
 
-    internal static TypeUri FromValidatedUri(Uri value)
+    internal static SchemaFamily FromValidatedUri(Uri value)
     {
-        return new TypeUri(value);
+        return new SchemaFamily(value);
     }
 
     internal static void ValidateFamilyUri(Uri value)
