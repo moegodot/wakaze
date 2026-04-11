@@ -3,4 +3,6 @@ name = "pyenv"
 version = "0.1.0"
 description = "repository pythone environment"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "meson>=1.10.2",
+]
