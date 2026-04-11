@@ -28,6 +28,7 @@ using var log = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 Log.Logger = log;
-Log.Information("Process {step}", "data");
+// usage:
+Log.Information("Process {data}", foo);
 Log.Error(ex,"Catch an exception when ....")
 ```
