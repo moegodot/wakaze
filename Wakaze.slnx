@@ -2,6 +2,8 @@
     <Folder Name="/items/">
         <File Path="AGENTS.ENG.md" />
         <File Path="AGENTS.md" />
+        <File Path="AGENTS.SCRIPT.WRITING.md" />
+        <File Path="AGENTS.SCRIPTS.md" />
         <File Path="AGENTS.TESTING.md" />
         <File Path="Directory.Build.props" />
         <File Path="Directory.Packages.props" />
@@ -16,6 +18,10 @@
         <File Path="eng\scripts\newManagedProject" />
         <File Path="eng\scripts\runManagedTests" />
         <File Path="eng\scripts\updateNugetLockFiles" />
+    </Folder>
+    <Folder Name="/scripts/">
+        <File Path="scripts\Directory.Build.props" />
+        <File Path="scripts\Directory.Packages.props" />
     </Folder>
     <Folder Name="/src/" />
     <Folder Name="/src/managed/">

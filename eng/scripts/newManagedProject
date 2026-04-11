@@ -1,15 +1,24 @@
 #!/usr/bin/env dotnet
 
+#:package Serilog
+#:package Serilog.Sinks.Console
+
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
+using Serilog;
 
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] args)
 {
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
     var scriptPath = GetScriptPath();
     var repositoryRoot = GetRepositoryRoot(scriptPath);
     var solutionPath = Path.Combine(repositoryRoot, "Wakaze.slnx");
@@ -30,26 +39,25 @@ static async Task<int> RunAsync(string[] args)
 
         await ScaffoldAsync(layout, repositoryRoot, solutionPath);
 
-        Console.WriteLine($"Created {layout.ProjectName}.");
-        Console.WriteLine($"  Source project: {Path.GetRelativePath(repositoryRoot, layout.SourceProjectPath)}");
+        Log.Information("Created {ProjectName}.", layout.ProjectName);
+        Log.Information("Source project: {ProjectPath}", Path.GetRelativePath(repositoryRoot, layout.SourceProjectPath));
 
         if (layout.WithTests)
         {
-            Console.WriteLine($"  Test project:   {Path.GetRelativePath(repositoryRoot, layout.TestProjectPath!)}");
+            Log.Information("Test project: {ProjectPath}", Path.GetRelativePath(repositoryRoot, layout.TestProjectPath!));
         }
 
         return 0;
     }
     catch (UsageException ex)
     {
-        Console.Error.WriteLine($"Error: {ex.Message}");
-        Console.Error.WriteLine();
-        PrintHelp(Console.Error);
+        Log.Error("Error: {Message}", ex.Message);
+        PrintHelp(Console.Error, includeLeadingBlankLine: true);
         return 1;
     }
     catch (Exception ex)
     {
-        Console.Error.WriteLine($"Error: {ex.Message}");
+        Log.Error(ex, "Unhandled error while creating the managed project.");
         return 1;
     }
 }
@@ -535,8 +543,13 @@ static bool TryParseWithTests(string value, out bool withTests)
     }
 }
 
-static void PrintHelp(TextWriter writer)
+static void PrintHelp(TextWriter writer, bool includeLeadingBlankLine = false)
 {
+    if (includeLeadingBlankLine)
+    {
+        writer.WriteLine();
+    }
+
     writer.WriteLine(
         """
         Usage:
