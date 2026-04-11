@@ -1,0 +1,43 @@
+{
+    "mesonSetupArguments": [
+        "--buildtype=release",
+        "-Dblocksize=8",
+        "-Dwal_blocksize=8",
+        "-Dsegsize=1",
+        "-Dsegsize_blocks=0",
+        "-Dssl=openssl",
+        "-Dicu=enabled",
+        "-Dzlib=enabled",
+        "-Dlz4=enabled",
+        "-Dzstd=enabled",
+        "-Dreadline=disabled",
+        "-Dgssapi=disabled",
+        "-Dldap=disabled",
+        "-Dpam=disabled",
+        "-Dbsd_auth=disabled",
+        "-Dbonjour=disabled",
+        "-Dlibxml=disabled",
+        "-Dlibxslt=disabled",
+        "-Dlibcurl=disabled",
+        "-Dplperl=disabled",
+        "-Dplpython=disabled",
+        "-Dpltcl=disabled",
+        "-Dsystemd=disabled",
+        "-Dselinux=disabled",
+        "-Ddocs=disabled",
+        "-Ddocs_pdf=disabled",
+        "-Dtap_tests=disabled",
+        "-Dcassert=false",
+        "-Dinjection_points=false",
+        "-Dllvm=disabled",
+        "-Duuid=none",
+        "-Drpath=true",
+        "-Dextra_version=-wakaze"
+    ],
+    "macosBrewUpgradeFormulae": [
+        "openssl@3",
+        "icu4c@77",
+        "lz4",
+        "zstd"
+    ]
+}

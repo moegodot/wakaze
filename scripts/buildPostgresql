@@ -1,0 +1,503 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        ValidateArguments(args);
+
+        var scriptPath = GetScriptPath();
+        var repositoryRoot = GetRepositoryRoot(scriptPath);
+        var context = BuildContext.Create(repositoryRoot);
+        var config = LoadBuildConfig(context.OptionsPath);
+
+        ValidateInputs(context, config);
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var exitCode = await UpgradeHomebrewDependenciesAsync(context, config.MacosBrewUpgradeFormulae, repositoryRoot);
+            if (exitCode != 0)
+            {
+                return exitCode;
+            }
+        }
+        else
+        {
+            Log.Information("Skipping Homebrew upgrade on non-macOS.");
+        }
+
+        EnsureParentDirectories(context);
+
+        var isReconfigure = IsConfiguredBuildDirectory(context.BuildDirectory);
+        Log.Information(
+            isReconfigure
+                ? "Reconfiguring PostgreSQL build in {BuildDirectory}"
+                : "Configuring PostgreSQL build in {BuildDirectory}",
+            Path.GetRelativePath(repositoryRoot, context.BuildDirectory));
+
+        var buildExitCode = await RunMesonAsync(
+            context,
+            CreateSetupArguments(context, config.MesonSetupArguments, isReconfigure),
+            repositoryRoot);
+        if (buildExitCode != 0)
+        {
+            return buildExitCode;
+        }
+
+        Log.Information("Compiling PostgreSQL from {SourceDirectory}", Path.GetRelativePath(repositoryRoot, context.SourceDirectory));
+        buildExitCode = await RunMesonAsync(
+            context,
+            ["run", "meson", "compile", "-C", context.BuildDirectory],
+            repositoryRoot);
+        if (buildExitCode != 0)
+        {
+            return buildExitCode;
+        }
+
+        Log.Information("Installing PostgreSQL to {InstallDirectory}", Path.GetRelativePath(repositoryRoot, context.InstallDirectory));
+        buildExitCode = await RunMesonAsync(
+            context,
+            ["run", "meson", "install", "-C", context.BuildDirectory],
+            repositoryRoot);
+        if (buildExitCode != 0)
+        {
+            return buildExitCode;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            Log.Information("Relocating PostgreSQL install tree at {InstallDirectory}", Path.GetRelativePath(repositoryRoot, context.InstallDirectory));
+            buildExitCode = await RunScriptAsync(
+                context.RelocateScriptPath,
+                [],
+                repositoryRoot,
+                repositoryRoot);
+            if (buildExitCode != 0)
+            {
+                return buildExitCode;
+            }
+        }
+        else
+        {
+            Log.Information("Skipping relocation on non-macOS.");
+        }
+
+        Log.Information("PostgreSQL build and installation completed successfully.");
+        return 0;
+    }
+    catch (UsageException ex)
+    {
+        Log.Error("Error: {Message}", ex.Message);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Unhandled error while building PostgreSQL.");
+        return 1;
+    }
+}
+
+static void ValidateArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        return;
+    }
+
+    throw new UsageException("buildPostgresql does not accept arguments.");
+}
+
+static void ValidateInputs(BuildContext context, BuildConfig config)
+{
+    if (!Directory.Exists(context.SourceDirectory))
+    {
+        throw new InvalidOperationException($"PostgreSQL source directory was not found at '{context.SourceDirectory}'. Run scripts/downloadPostgresqlSource first.");
+    }
+
+    var mesonBuildPath = Path.Combine(context.SourceDirectory, "meson.build");
+    if (!File.Exists(mesonBuildPath))
+    {
+        throw new InvalidOperationException($"The PostgreSQL source directory '{context.SourceDirectory}' does not contain meson.build.");
+    }
+
+    if (!File.Exists(context.RunUvScriptPath))
+    {
+        throw new InvalidOperationException($"uv wrapper script was not found at '{context.RunUvScriptPath}'.");
+    }
+
+    if (!Directory.Exists(context.PyenvDirectory))
+    {
+        throw new InvalidOperationException($"Python environment directory was not found at '{context.PyenvDirectory}'.");
+    }
+
+    if (!File.Exists(Path.Combine(context.PyenvDirectory, "pyproject.toml")))
+    {
+        throw new InvalidOperationException($"pyenv project file was not found at '{Path.Combine(context.PyenvDirectory, "pyproject.toml")}'.");
+    }
+
+    if (config.MesonSetupArguments.Count == 0)
+    {
+        throw new InvalidOperationException("vendors/pgsql_options.json must define a non-empty mesonSetupArguments array.");
+    }
+
+    if (OperatingSystem.IsMacOS())
+    {
+        if (config.MacosBrewUpgradeFormulae.Count == 0)
+        {
+            throw new InvalidOperationException("vendors/pgsql_options.json must define a non-empty macosBrewUpgradeFormulae array on macOS.");
+        }
+
+        if (ResolveExecutablePath("brew") is null)
+        {
+            throw new InvalidOperationException("The brew executable was not found in PATH.");
+        }
+
+        if (!File.Exists(context.RelocateScriptPath))
+        {
+            throw new InvalidOperationException($"Relocation script was not found at '{context.RelocateScriptPath}'.");
+        }
+    }
+}
+
+static BuildConfig LoadBuildConfig(string optionsPath)
+{
+    if (!File.Exists(optionsPath))
+    {
+        throw new InvalidOperationException($"PostgreSQL configuration file was not found at '{optionsPath}'.");
+    }
+
+    using var document = JsonDocument.Parse(File.ReadAllText(optionsPath));
+    if (document.RootElement.ValueKind != JsonValueKind.Object)
+    {
+        throw new InvalidOperationException("vendors/pgsql_options.json must contain a top-level JSON object.");
+    }
+
+    return new BuildConfig(
+        ReadRequiredStringArray(document.RootElement, "mesonSetupArguments"),
+        ReadRequiredStringArray(document.RootElement, "macosBrewUpgradeFormulae"));
+}
+
+static IReadOnlyList<string> ReadRequiredStringArray(JsonElement rootElement, string propertyName)
+{
+    if (!rootElement.TryGetProperty(propertyName, out var propertyElement))
+    {
+        throw new InvalidOperationException($"The '{propertyName}' property is missing from vendors/pgsql_options.json.");
+    }
+
+    if (propertyElement.ValueKind != JsonValueKind.Array)
+    {
+        throw new InvalidOperationException($"The '{propertyName}' property in vendors/pgsql_options.json must be a JSON array.");
+    }
+
+    var values = new List<string>();
+    foreach (var item in propertyElement.EnumerateArray())
+    {
+        if (item.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException($"The '{propertyName}' array in vendors/pgsql_options.json must contain only strings.");
+        }
+
+        var value = item.GetString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"The '{propertyName}' array in vendors/pgsql_options.json cannot contain empty strings.");
+        }
+
+        values.Add(value);
+    }
+
+    return values;
+}
+
+static void EnsureParentDirectories(BuildContext context)
+{
+    var buildParent = Path.GetDirectoryName(context.BuildDirectory)
+        ?? throw new InvalidOperationException($"Unable to resolve the parent directory for '{context.BuildDirectory}'.");
+    var installParent = Path.GetDirectoryName(context.InstallDirectory)
+        ?? throw new InvalidOperationException($"Unable to resolve the parent directory for '{context.InstallDirectory}'.");
+
+    Directory.CreateDirectory(buildParent);
+    Directory.CreateDirectory(installParent);
+    Directory.CreateDirectory(context.InstallDirectory);
+}
+
+static bool IsConfiguredBuildDirectory(string buildDirectory)
+{
+    return File.Exists(Path.Combine(buildDirectory, "meson-private", "coredata.dat"));
+}
+
+static IReadOnlyList<string> CreateSetupArguments(BuildContext context, IReadOnlyList<string> mesonOptions, bool isReconfigure)
+{
+    var arguments = new List<string>
+    {
+        "run",
+        "meson",
+        "setup",
+    };
+
+    if (isReconfigure)
+    {
+        arguments.Add("--reconfigure");
+    }
+
+    arguments.Add(context.BuildDirectory);
+    arguments.Add(context.SourceDirectory);
+    arguments.Add("--prefix");
+    arguments.Add(context.InstallDirectory);
+    arguments.AddRange(mesonOptions);
+
+    return arguments;
+}
+
+static async Task<int> UpgradeHomebrewDependenciesAsync(BuildContext context, IReadOnlyList<string> formulae, string repositoryRoot)
+{
+    foreach (var formula in formulae)
+    {
+        var listResult = await RunCommandAsync(
+            "brew",
+            ["list", "--versions", formula],
+            repositoryRoot,
+            captureOutput: true);
+
+        if (listResult.ExitCode != 0 || string.IsNullOrWhiteSpace(listResult.StandardOutput))
+        {
+            Log.Error("Required Homebrew formula '{Formula}' is not installed.", formula);
+            return listResult.ExitCode != 0 ? listResult.ExitCode : 1;
+        }
+    }
+
+    Log.Information("Upgrading Homebrew formulae: {Formulae}", string.Join(", ", formulae));
+    return (await RunCommandAsync(
+        "brew",
+        ["upgrade", .. formulae],
+        repositoryRoot,
+        captureOutput: false)).ExitCode;
+}
+
+static async Task<int> RunMesonAsync(BuildContext context, IReadOnlyList<string> arguments, string repositoryRoot)
+{
+    return await RunScriptAsync(
+        context.RunUvScriptPath,
+        arguments,
+        context.PyenvDirectory,
+        repositoryRoot);
+}
+
+static async Task<int> RunScriptAsync(string scriptPath, IReadOnlyList<string> arguments, string workingDirectory, string repositoryRoot)
+{
+    var startInfo = OperatingSystem.IsWindows()
+        ? new ProcessStartInfo("dotnet")
+        : new ProcessStartInfo(scriptPath);
+
+    startInfo.UseShellExecute = false;
+    startInfo.CreateNoWindow = true;
+    startInfo.WorkingDirectory = workingDirectory;
+
+    if (OperatingSystem.IsWindows())
+    {
+        startInfo.ArgumentList.Add(scriptPath);
+    }
+
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    Log.Information("Running command: {Command}", FormatCommandLine(scriptPath, arguments, repositoryRoot));
+
+    using var process = new Process
+    {
+        StartInfo = startInfo,
+    };
+
+    if (!process.Start())
+    {
+        Log.Error("Failed to start {ScriptPath}.", Path.GetRelativePath(repositoryRoot, scriptPath));
+        return 1;
+    }
+
+    await process.WaitForExitAsync();
+    if (process.ExitCode != 0)
+    {
+        Log.Error("Command failed with exit code {ExitCode}.", process.ExitCode);
+    }
+
+    return process.ExitCode;
+}
+
+static async Task<CommandResult> RunCommandAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory, bool captureOutput)
+{
+    var startInfo = new ProcessStartInfo(fileName)
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        WorkingDirectory = workingDirectory,
+        RedirectStandardOutput = captureOutput,
+        RedirectStandardError = captureOutput,
+    };
+
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    Log.Information("Running command: {Command}", FormatCommandLine(fileName, arguments, workingDirectory));
+
+    using var process = new Process
+    {
+        StartInfo = startInfo,
+    };
+
+    if (!process.Start())
+    {
+        return new CommandResult(1, string.Empty, string.Empty);
+    }
+
+    string standardOutput = string.Empty;
+    string standardError = string.Empty;
+
+    if (captureOutput)
+    {
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await Task.WhenAll(outputTask, errorTask, process.WaitForExitAsync());
+        standardOutput = outputTask.Result;
+        standardError = errorTask.Result;
+    }
+    else
+    {
+        await process.WaitForExitAsync();
+    }
+
+    if (process.ExitCode != 0)
+    {
+        Log.Error("Command '{Command}' failed with exit code {ExitCode}.", fileName, process.ExitCode);
+        if (captureOutput && !string.IsNullOrWhiteSpace(standardError))
+        {
+            Log.Error("{ErrorOutput}", standardError.TrimEnd());
+        }
+    }
+
+    return new CommandResult(process.ExitCode, standardOutput, standardError);
+}
+
+static string? ResolveExecutablePath(string executableName)
+{
+    var pathVariable = Environment.GetEnvironmentVariable("PATH");
+    if (string.IsNullOrWhiteSpace(pathVariable))
+    {
+        return null;
+    }
+
+    foreach (var directory in pathVariable.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+    {
+        var candidate = Path.Combine(directory, executableName);
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+static string FormatCommandLine(string executablePath, IReadOnlyList<string> arguments, string basePath)
+{
+    var displayPath = Path.IsPathRooted(executablePath) && executablePath.StartsWith(basePath, StringComparison.Ordinal)
+        ? Path.GetRelativePath(basePath, executablePath)
+        : executablePath;
+
+    var parts = new List<string>
+    {
+        EscapeArgument(displayPath),
+    };
+
+    foreach (var argument in arguments)
+    {
+        parts.Add(EscapeArgument(argument));
+    }
+
+    return string.Join(" ", parts);
+}
+
+static string EscapeArgument(string value)
+{
+    return value.Any(char.IsWhiteSpace) || value.Contains('"')
+        ? $"\"{value.Replace("\"", "\\\"")}\""
+        : value;
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+sealed record BuildConfig(
+    IReadOnlyList<string> MesonSetupArguments,
+    IReadOnlyList<string> MacosBrewUpgradeFormulae);
+
+sealed record CommandResult(int ExitCode, string StandardOutput, string StandardError);
+
+sealed record BuildContext(
+    string RepositoryRoot,
+    string SourceDirectory,
+    string BuildDirectory,
+    string InstallDirectory,
+    string OptionsPath,
+    string RunUvScriptPath,
+    string PyenvDirectory,
+    string RelocateScriptPath)
+{
+    public static BuildContext Create(string repositoryRoot)
+    {
+        return new BuildContext(
+            repositoryRoot,
+            Path.Combine(repositoryRoot, "vendors", "native", "postgresql"),
+            Path.Combine(repositoryRoot, "vendors", "build", "postgresql"),
+            Path.Combine(repositoryRoot, "vendors", "install", "postgresql"),
+            Path.Combine(repositoryRoot, "vendors", "pgsql_options.json"),
+            Path.Combine(repositoryRoot, "scripts", "runUv"),
+            Path.Combine(repositoryRoot, "pyenv"),
+            Path.Combine(repositoryRoot, "scripts", "relocatePostgresqlInstall"));
+    }
+}

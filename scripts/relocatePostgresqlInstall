@@ -1,0 +1,723 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        ValidateArguments(args);
+
+        if (!OperatingSystem.IsMacOS())
+        {
+            throw new InvalidOperationException("relocatePostgresqlInstall is only supported on macOS.");
+        }
+
+        var scriptPath = GetScriptPath();
+        var repositoryRoot = GetRepositoryRoot(scriptPath);
+        var context = RelocationContext.Create(repositoryRoot);
+        var config = LoadBuildConfig(context.OptionsPath);
+
+        ValidateInputs(context);
+        var sourceSearchDirectories = await ResolveFormulaSearchDirectoriesAsync(config.MacosBrewUpgradeFormulae, repositoryRoot);
+
+        var copiedExternalLibraries = await BundleExternalLibrariesAsync(context, sourceSearchDirectories);
+        Log.Information("Bundled {Count} external libraries.", copiedExternalLibraries.Count);
+
+        var realLibraryPaths = GetRealLibraryPaths(context.LibraryDirectory);
+        foreach (var libraryPath in realLibraryPaths)
+        {
+            await SetInstallNameAsync(libraryPath, $"@loader_path/{Path.GetFileName(libraryPath)}", repositoryRoot);
+        }
+
+        var bundledLibraryByName = realLibraryPaths
+            .ToDictionary(GetFileNameOrThrow, StringComparer.Ordinal);
+
+        foreach (var executablePath in GetExecutablePaths(context.BinaryDirectory))
+        {
+            await RewriteDependenciesAsync(
+                executablePath,
+                DependencyReferenceKind.Executable,
+                context,
+                bundledLibraryByName);
+        }
+
+        foreach (var libraryPath in realLibraryPaths)
+        {
+            await RewriteDependenciesAsync(
+                libraryPath,
+                DependencyReferenceKind.Library,
+                context,
+                bundledLibraryByName);
+        }
+
+        foreach (var machOPath in GetExecutablePaths(context.BinaryDirectory).Concat(realLibraryPaths))
+        {
+            await CodesignAsync(machOPath, repositoryRoot);
+        }
+
+        await AuditDependenciesAsync(context, bundledLibraryByName.Keys);
+
+        Log.Information("PostgreSQL install tree relocation completed successfully.");
+        return 0;
+    }
+    catch (UsageException ex)
+    {
+        Log.Error("Error: {Message}", ex.Message);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Unhandled error while relocating PostgreSQL install.");
+        return 1;
+    }
+}
+
+static void ValidateArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        return;
+    }
+
+    throw new UsageException("relocatePostgresqlInstall does not accept arguments.");
+}
+
+static void ValidateInputs(RelocationContext context)
+{
+    if (!Directory.Exists(context.BinaryDirectory))
+    {
+        throw new InvalidOperationException($"PostgreSQL bin directory was not found at '{context.BinaryDirectory}'.");
+    }
+
+    if (!Directory.Exists(context.LibraryDirectory))
+    {
+        throw new InvalidOperationException($"PostgreSQL lib directory was not found at '{context.LibraryDirectory}'.");
+    }
+
+    foreach (var tool in new[] { "otool", "install_name_tool", "codesign" })
+    {
+        if (ResolveExecutablePath(tool) is null)
+        {
+            throw new InvalidOperationException($"Required tool '{tool}' was not found in PATH.");
+        }
+    }
+}
+
+static async Task<IReadOnlyList<string>> BundleExternalLibrariesAsync(RelocationContext context, IReadOnlyList<string> sourceSearchDirectories)
+{
+    var bundledLibraries = new List<string>();
+    var sourcePathByName = new Dictionary<string, string>(StringComparer.Ordinal);
+    var inspectionQueue = new Queue<string>();
+    var inspectedPaths = new HashSet<string>(StringComparer.Ordinal);
+
+    foreach (var path in GetExecutablePaths(context.BinaryDirectory))
+    {
+        inspectionQueue.Enqueue(path);
+    }
+
+    foreach (var path in GetRealLibraryPaths(context.LibraryDirectory))
+    {
+        inspectionQueue.Enqueue(path);
+    }
+
+    while (inspectionQueue.Count > 0)
+    {
+        var currentPath = inspectionQueue.Dequeue();
+        var fullCurrentPath = Path.GetFullPath(currentPath);
+        if (!inspectedPaths.Add(fullCurrentPath))
+        {
+            continue;
+        }
+
+        var dependencies = await ReadDependenciesAsync(currentPath, context.RepositoryRoot);
+        foreach (var dependency in dependencies)
+        {
+            var resolvedDependencyPath = ResolveDependencyPath(currentPath, dependency);
+            if (resolvedDependencyPath is null)
+            {
+                continue;
+            }
+
+            if (!File.Exists(resolvedDependencyPath) && !Path.IsPathRooted(dependency))
+            {
+                var bundledSourcePath = FindSourceDependencyPath(GetFileNameOrThrow(resolvedDependencyPath), sourceSearchDirectories);
+                if (bundledSourcePath is not null)
+                {
+                    resolvedDependencyPath = bundledSourcePath;
+                }
+            }
+
+            if (!IsExternalBundleCandidate(resolvedDependencyPath, context))
+            {
+                continue;
+            }
+
+            var fileName = Path.GetFileName(resolvedDependencyPath);
+            var normalizedDependency = await NormalizePathAsync(resolvedDependencyPath, context.RepositoryRoot);
+
+            if (sourcePathByName.TryGetValue(fileName, out var existingSourcePath)
+                && !string.Equals(existingSourcePath, normalizedDependency, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Cannot bundle two different libraries with the same file name '{fileName}': '{existingSourcePath}' and '{normalizedDependency}'.");
+            }
+
+            sourcePathByName[fileName] = normalizedDependency;
+
+            var bundledPath = Path.Combine(context.LibraryDirectory, fileName);
+            if (!File.Exists(bundledPath))
+            {
+                Log.Information("Bundling external library {LibraryPath}", normalizedDependency);
+                File.Copy(normalizedDependency, bundledPath, overwrite: true);
+                bundledLibraries.Add(bundledPath);
+            }
+
+            inspectionQueue.Enqueue(normalizedDependency);
+        }
+    }
+
+    return bundledLibraries;
+}
+
+static IEnumerable<string> GetExecutablePaths(string binaryDirectory)
+{
+    return Directory.EnumerateFiles(binaryDirectory)
+        .Where(path => !IsSymlink(path))
+        .OrderBy(path => path, StringComparer.Ordinal);
+}
+
+static List<string> GetRealLibraryPaths(string libraryDirectory)
+{
+    return Directory.EnumerateFiles(libraryDirectory, "*.dylib")
+        .Where(path => !IsSymlink(path))
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .ToList();
+}
+
+static bool IsSymlink(string path)
+{
+    return new FileInfo(path).LinkTarget is not null;
+}
+
+static bool IsExternalBundleCandidate(string dependency, RelocationContext context)
+{
+    if (!Path.IsPathRooted(dependency))
+    {
+        return false;
+    }
+
+    var fullDependencyPath = Path.GetFullPath(dependency);
+    if (fullDependencyPath.StartsWith(context.InstallDirectory, StringComparison.Ordinal))
+    {
+        return false;
+    }
+
+    return !IsSystemLibraryPath(fullDependencyPath);
+}
+
+static bool IsSystemLibraryPath(string dependency)
+{
+    return dependency.StartsWith("/usr/lib/", StringComparison.Ordinal)
+        || dependency.StartsWith("/System/Library/", StringComparison.Ordinal);
+}
+
+static BuildConfig LoadBuildConfig(string optionsPath)
+{
+    using var document = JsonDocument.Parse(File.ReadAllText(optionsPath));
+    if (document.RootElement.ValueKind != JsonValueKind.Object)
+    {
+        throw new InvalidOperationException("vendors/pgsql_options.json must contain a top-level JSON object.");
+    }
+
+    return new BuildConfig(ReadRequiredStringArray(document.RootElement, "macosBrewUpgradeFormulae"));
+}
+
+static IReadOnlyList<string> ReadRequiredStringArray(JsonElement rootElement, string propertyName)
+{
+    if (!rootElement.TryGetProperty(propertyName, out var propertyElement))
+    {
+        throw new InvalidOperationException($"The '{propertyName}' property is missing from vendors/pgsql_options.json.");
+    }
+
+    if (propertyElement.ValueKind != JsonValueKind.Array)
+    {
+        throw new InvalidOperationException($"The '{propertyName}' property in vendors/pgsql_options.json must be a JSON array.");
+    }
+
+    var values = new List<string>();
+    foreach (var item in propertyElement.EnumerateArray())
+    {
+        if (item.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException($"The '{propertyName}' array in vendors/pgsql_options.json must contain only strings.");
+        }
+
+        var value = item.GetString();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"The '{propertyName}' array in vendors/pgsql_options.json cannot contain empty strings.");
+        }
+
+        values.Add(value);
+    }
+
+    return values;
+}
+
+static string? ResolveDependencyPath(string consumerPath, string dependency)
+{
+    if (Path.IsPathRooted(dependency))
+    {
+        return dependency;
+    }
+
+    var consumerDirectory = Path.GetDirectoryName(consumerPath)
+        ?? throw new InvalidOperationException($"Unable to resolve the directory for '{consumerPath}'.");
+
+    if (dependency.StartsWith("@loader_path/", StringComparison.Ordinal))
+    {
+        return Path.GetFullPath(Path.Combine(consumerDirectory, dependency["@loader_path/".Length..]));
+    }
+
+    if (dependency.StartsWith("@executable_path/", StringComparison.Ordinal))
+    {
+        return Path.GetFullPath(Path.Combine(consumerDirectory, dependency["@executable_path/".Length..]));
+    }
+
+    return null;
+}
+
+static async Task<IReadOnlyList<string>> ResolveFormulaSearchDirectoriesAsync(IReadOnlyList<string> formulae, string repositoryRoot)
+{
+    var directories = new List<string>();
+    foreach (var formula in formulae)
+    {
+        var result = await RunCommandAsync(
+            "brew",
+            ["--prefix", formula],
+            repositoryRoot,
+            captureOutput: true);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Failed to resolve the Homebrew prefix for '{formula}'.");
+        }
+
+        var prefixPath = result.StandardOutput.Trim();
+        if (string.IsNullOrWhiteSpace(prefixPath))
+        {
+            throw new InvalidOperationException($"The Homebrew prefix for '{formula}' resolved to an empty string.");
+        }
+
+        directories.Add(prefixPath);
+    }
+
+    return directories;
+}
+
+static string? FindSourceDependencyPath(string fileName, IReadOnlyList<string> sourceSearchDirectories)
+{
+    foreach (var directory in sourceSearchDirectories)
+    {
+        if (!Directory.Exists(directory))
+        {
+            continue;
+        }
+
+        var matches = Directory.EnumerateFiles(directory, fileName, SearchOption.AllDirectories).ToList();
+        if (matches.Count == 0)
+        {
+            continue;
+        }
+
+        if (matches.Count > 1)
+        {
+            throw new InvalidOperationException($"Found multiple candidate source libraries for '{fileName}' under '{directory}': {string.Join(", ", matches)}");
+        }
+
+        return matches[0];
+    }
+
+    return null;
+}
+
+static string GetFileNameOrThrow(string path)
+{
+    return Path.GetFileName(path)
+        ?? throw new InvalidOperationException($"Unable to resolve a file name from '{path}'.");
+}
+
+static async Task<IReadOnlyList<string>> ReadDependenciesAsync(string path, string repositoryRoot)
+{
+    var result = await RunCommandAsync(
+        "otool",
+        ["-L", path],
+        repositoryRoot,
+        captureOutput: true);
+
+    if (result.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"Failed to inspect dependencies for '{path}'.");
+    }
+
+    return ParseOtoolDependencies(result.StandardOutput);
+}
+
+static async Task<string> NormalizePathAsync(string path, string workingDirectory)
+{
+    var result = await RunCommandAsync(
+        "realpath",
+        [path],
+        workingDirectory,
+        captureOutput: true);
+
+    if (result.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"Failed to resolve the physical path for '{path}'.");
+    }
+
+    var normalizedPath = result.StandardOutput.Trim();
+    if (string.IsNullOrWhiteSpace(normalizedPath))
+    {
+        throw new InvalidOperationException($"The physical path for '{path}' resolved to an empty string.");
+    }
+
+    return normalizedPath;
+}
+
+static IReadOnlyList<string> ParseOtoolDependencies(string output)
+{
+    return output
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Skip(1)
+        .Select(line => line.Trim())
+        .Where(line => line.Length > 0)
+        .Select(line => line.Split(" (compatibility version", 2, StringSplitOptions.None)[0])
+        .ToList();
+}
+
+static async Task RewriteDependenciesAsync(
+    string consumerPath,
+    DependencyReferenceKind referenceKind,
+    RelocationContext context,
+    IReadOnlyDictionary<string, string> bundledLibraryByName)
+{
+    var dependencies = await ReadDependenciesAsync(consumerPath, context.RepositoryRoot);
+    foreach (var dependency in dependencies)
+    {
+        if (!Path.IsPathRooted(dependency))
+        {
+            continue;
+        }
+
+        var dependencyFileName = Path.GetFileName(dependency);
+        if (!bundledLibraryByName.ContainsKey(dependencyFileName))
+        {
+            continue;
+        }
+
+        if (IsSystemLibraryPath(dependency))
+        {
+            continue;
+        }
+
+        var newReference = referenceKind switch
+        {
+            DependencyReferenceKind.Executable => $"@executable_path/../lib/{dependencyFileName}",
+            DependencyReferenceKind.Library => $"@loader_path/{dependencyFileName}",
+            _ => throw new InvalidOperationException($"Unsupported dependency reference kind '{referenceKind}'."),
+        };
+
+        if (dependency == newReference)
+        {
+            continue;
+        }
+
+        await ChangeInstallNameAsync(consumerPath, dependency, newReference, context.RepositoryRoot);
+    }
+}
+
+static async Task SetInstallNameAsync(string libraryPath, string installName, string repositoryRoot)
+{
+    var currentId = await ReadInstallNameAsync(libraryPath, repositoryRoot);
+    if (string.Equals(currentId, installName, StringComparison.Ordinal))
+    {
+        return;
+    }
+
+    await RunRequiredCommandAsync(
+        "install_name_tool",
+        ["-id", installName, libraryPath],
+        repositoryRoot);
+}
+
+static async Task<string?> ReadInstallNameAsync(string libraryPath, string repositoryRoot)
+{
+    var result = await RunCommandAsync(
+        "otool",
+        ["-D", libraryPath],
+        repositoryRoot,
+        captureOutput: true);
+    if (result.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"Failed to inspect install name for '{libraryPath}'.");
+    }
+
+    var lines = result.StandardOutput
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        .Select(line => line.Trim())
+        .ToList();
+
+    return lines.Count >= 2 ? lines[1] : null;
+}
+
+static async Task ChangeInstallNameAsync(string targetPath, string oldName, string newName, string repositoryRoot)
+{
+    await RunRequiredCommandAsync(
+        "install_name_tool",
+        ["-change", oldName, newName, targetPath],
+        repositoryRoot);
+}
+
+static async Task CodesignAsync(string path, string repositoryRoot)
+{
+    await RunRequiredCommandAsync(
+        "codesign",
+        ["--force", "--sign", "-", path],
+        repositoryRoot);
+}
+
+static async Task AuditDependenciesAsync(RelocationContext context, IEnumerable<string> bundledLibraryNames)
+{
+    var errors = new List<string>();
+    var allowedBundledNames = new HashSet<string>(bundledLibraryNames, StringComparer.Ordinal);
+
+    foreach (var path in GetExecutablePaths(context.BinaryDirectory).Concat(GetRealLibraryPaths(context.LibraryDirectory)))
+    {
+        var dependencies = await ReadDependenciesAsync(path, context.RepositoryRoot);
+        foreach (var dependency in dependencies)
+        {
+            if (dependency.StartsWith(context.RepositoryRoot, StringComparison.Ordinal))
+            {
+                errors.Add($"{path}: dependency still points at repository path '{dependency}'.");
+                continue;
+            }
+
+            if (dependency.StartsWith("/opt/homebrew/", StringComparison.Ordinal))
+            {
+                errors.Add($"{path}: dependency still points at Homebrew path '{dependency}'.");
+                continue;
+            }
+
+            if (Path.IsPathRooted(dependency) && !IsSystemLibraryPath(dependency))
+            {
+                errors.Add($"{path}: dependency still points at non-system absolute path '{dependency}'.");
+                continue;
+            }
+
+            if (dependency.StartsWith("@executable_path/", StringComparison.Ordinal)
+                || dependency.StartsWith("@loader_path/", StringComparison.Ordinal))
+            {
+                var dependencyFileName = Path.GetFileName(dependency);
+                if (!allowedBundledNames.Contains(dependencyFileName))
+                {
+                    errors.Add($"{path}: dependency points to '{dependency}' but no bundled library named '{dependencyFileName}' exists.");
+                }
+            }
+        }
+    }
+
+    if (errors.Count > 0)
+    {
+        throw new InvalidOperationException("Relocation audit failed:\n" + string.Join('\n', errors));
+    }
+}
+
+static async Task RunRequiredCommandAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory)
+{
+    var result = await RunCommandAsync(fileName, arguments, workingDirectory, captureOutput: true);
+    if (result.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"Command '{fileName}' failed with exit code {result.ExitCode}.");
+    }
+}
+
+static async Task<CommandResult> RunCommandAsync(string fileName, IReadOnlyList<string> arguments, string workingDirectory, bool captureOutput)
+{
+    var startInfo = new ProcessStartInfo(fileName)
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        WorkingDirectory = workingDirectory,
+        RedirectStandardOutput = captureOutput,
+        RedirectStandardError = captureOutput,
+    };
+
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    Log.Information("Running command: {Command}", FormatCommandLine(fileName, arguments, workingDirectory));
+
+    using var process = new Process
+    {
+        StartInfo = startInfo,
+    };
+
+    if (!process.Start())
+    {
+        return new CommandResult(1, string.Empty, string.Empty);
+    }
+
+    string standardOutput = string.Empty;
+    string standardError = string.Empty;
+
+    if (captureOutput)
+    {
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await Task.WhenAll(outputTask, errorTask, process.WaitForExitAsync());
+        standardOutput = outputTask.Result;
+        standardError = errorTask.Result;
+    }
+    else
+    {
+        await process.WaitForExitAsync();
+    }
+
+    if (process.ExitCode != 0)
+    {
+        Log.Error("Command '{Command}' failed with exit code {ExitCode}.", fileName, process.ExitCode);
+        if (captureOutput)
+        {
+            if (!string.IsNullOrWhiteSpace(standardOutput))
+            {
+                Log.Error("{StandardOutput}", standardOutput.TrimEnd());
+            }
+
+            if (!string.IsNullOrWhiteSpace(standardError))
+            {
+                Log.Error("{StandardError}", standardError.TrimEnd());
+            }
+        }
+    }
+
+    return new CommandResult(process.ExitCode, standardOutput, standardError);
+}
+
+static string? ResolveExecutablePath(string executableName)
+{
+    var pathVariable = Environment.GetEnvironmentVariable("PATH");
+    if (string.IsNullOrWhiteSpace(pathVariable))
+    {
+        return null;
+    }
+
+    foreach (var directory in pathVariable.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+    {
+        var candidate = Path.Combine(directory, executableName);
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+static string FormatCommandLine(string executablePath, IReadOnlyList<string> arguments, string basePath)
+{
+    var displayPath = Path.IsPathRooted(executablePath) && executablePath.StartsWith(basePath, StringComparison.Ordinal)
+        ? Path.GetRelativePath(basePath, executablePath)
+        : executablePath;
+
+    var parts = new List<string>
+    {
+        EscapeArgument(displayPath),
+    };
+
+    foreach (var argument in arguments)
+    {
+        parts.Add(EscapeArgument(argument));
+    }
+
+    return string.Join(" ", parts);
+}
+
+static string EscapeArgument(string value)
+{
+    return value.Any(char.IsWhiteSpace) || value.Contains('"')
+        ? $"\"{value.Replace("\"", "\\\"")}\""
+        : value;
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+sealed record CommandResult(int ExitCode, string StandardOutput, string StandardError);
+
+sealed record BuildConfig(IReadOnlyList<string> MacosBrewUpgradeFormulae);
+
+enum DependencyReferenceKind
+{
+    Executable,
+    Library,
+}
+
+sealed record RelocationContext(
+    string RepositoryRoot,
+    string OptionsPath,
+    string InstallDirectory,
+    string BinaryDirectory,
+    string LibraryDirectory)
+{
+    public static RelocationContext Create(string repositoryRoot)
+    {
+        var installDirectory = Path.Combine(repositoryRoot, "vendors", "install", "postgresql");
+        return new RelocationContext(
+            repositoryRoot,
+            Path.Combine(repositoryRoot, "vendors", "pgsql_options.json"),
+            installDirectory,
+            Path.Combine(installDirectory, "bin"),
+            Path.Combine(installDirectory, "lib"));
+    }
+}
