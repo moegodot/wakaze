@@ -22,6 +22,9 @@
     <Folder Name="/scripts/">
         <File Path="scripts\Directory.Build.props" />
         <File Path="scripts\Directory.Packages.props" />
+        <File Path="scripts\downloadPostgresqlSource" />
+        <File Path="scripts\downloadUv" />
+        <File Path="scripts\runUv" />
     </Folder>
     <Folder Name="/src/" />
     <Folder Name="/src/managed/">

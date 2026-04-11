@@ -1,0 +1,99 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] forwardedArguments)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        var scriptPath = GetScriptPath();
+        var repositoryRoot = GetRepositoryRoot(scriptPath);
+        var executablePath = GetExecutablePath(repositoryRoot);
+
+        if (!File.Exists(executablePath))
+        {
+            Log.Error("uv executable was not found at {Path}. Run scripts/downloadUv first.", Path.GetRelativePath(repositoryRoot, executablePath));
+            return 1;
+        }
+
+        using var process = CreateProcess(executablePath, forwardedArguments);
+        if (!process.Start())
+        {
+            Log.Error("Failed to start uv from {Path}.", Path.GetRelativePath(repositoryRoot, executablePath));
+            return 1;
+        }
+
+        await process.WaitForExitAsync();
+        return process.ExitCode;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Unhandled error while running uv.");
+        return 1;
+    }
+}
+
+static Process CreateProcess(string executablePath, IEnumerable<string> forwardedArguments)
+{
+    var startInfo = new ProcessStartInfo(executablePath)
+    {
+        UseShellExecute = false,
+        CreateNoWindow = true,
+        WorkingDirectory = Environment.CurrentDirectory,
+    };
+
+    foreach (var argument in forwardedArguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    return new Process
+    {
+        StartInfo = startInfo,
+    };
+}
+
+static string GetExecutablePath(string repositoryRoot)
+{
+    var executableName = OperatingSystem.IsWindows() ? "uv.exe" : "uv";
+    return Path.Combine(repositoryRoot, "vendors", "binary", "uv", executableName);
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}

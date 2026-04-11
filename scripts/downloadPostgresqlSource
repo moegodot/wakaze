@@ -1,0 +1,174 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Net;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        ValidateArguments(args);
+
+        var scriptPath = GetScriptPath();
+        var repositoryRoot = GetRepositoryRoot(scriptPath);
+        var sources = LoadVendorSources(repositoryRoot);
+
+        var fileName = $"postgresql-{sources.PostgresqlVersion}.tar.gz";
+        var downloadUrl = $"{sources.PostgresqlSourceBaseUrl.TrimEnd('/')}/v{sources.PostgresqlVersion}/{fileName}";
+        var outputDirectory = Path.Combine(repositoryRoot, "vendors", "native", "postgresql");
+        var outputPath = Path.Combine(outputDirectory, fileName);
+
+        Directory.CreateDirectory(outputDirectory);
+
+        Log.Information("Downloading PostgreSQL source from {Url}", downloadUrl);
+        await DownloadFileAsync(downloadUrl, outputPath);
+        Log.Information("Saved PostgreSQL source to {Path}", Path.GetRelativePath(repositoryRoot, outputPath));
+
+        return 0;
+    }
+    catch (UsageException ex)
+    {
+        Log.Error("Error: {Message}", ex.Message);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Unhandled error while downloading PostgreSQL source.");
+        return 1;
+    }
+}
+
+static void ValidateArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        return;
+    }
+
+    throw new UsageException("downloadPostgresqlSource does not accept arguments.");
+}
+
+static VendorSources LoadVendorSources(string repositoryRoot)
+{
+    var configPath = Path.Combine(repositoryRoot, "vendors", "vendors_source.json");
+    if (!File.Exists(configPath))
+    {
+        throw new InvalidOperationException($"Unable to locate vendor source config at '{configPath}'.");
+    }
+
+    using var document = JsonDocument.Parse(File.ReadAllText(configPath));
+
+    return new VendorSources(
+        GetRequiredString(document.RootElement, "postgresql", "version"),
+        GetRequiredString(document.RootElement, "postgresql", "sourceBaseUrl"));
+}
+
+static string GetRequiredString(JsonElement rootElement, string sectionName, string propertyName)
+{
+    if (!rootElement.TryGetProperty(sectionName, out var sectionElement))
+    {
+        throw new InvalidOperationException($"The '{sectionName}' section is missing from vendors/vendors_source.json.");
+    }
+
+    if (!sectionElement.TryGetProperty(propertyName, out var propertyElement))
+    {
+        throw new InvalidOperationException($"The '{sectionName}.{propertyName}' property is missing from vendors/vendors_source.json.");
+    }
+
+    var value = propertyElement.GetString();
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        throw new InvalidOperationException($"The '{sectionName}.{propertyName}' property in vendors/vendors_source.json cannot be empty.");
+    }
+
+    return value;
+}
+
+static async Task DownloadFileAsync(string url, string destinationPath)
+{
+    var destinationDirectory = Path.GetDirectoryName(destinationPath)
+        ?? throw new InvalidOperationException($"Unable to resolve the output directory for '{destinationPath}'.");
+    Directory.CreateDirectory(destinationDirectory);
+
+    var temporaryPath = Path.Combine(destinationDirectory, $"{Path.GetFileName(destinationPath)}.{Guid.NewGuid():N}.tmp");
+
+    try
+    {
+        using var httpClient = CreateHttpClient();
+        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        await using var fileStream = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await responseStream.CopyToAsync(fileStream);
+        await fileStream.FlushAsync();
+
+        File.Move(temporaryPath, destinationPath, overwrite: true);
+    }
+    catch
+    {
+        if (File.Exists(temporaryPath))
+        {
+            File.Delete(temporaryPath);
+        }
+
+        throw;
+    }
+}
+
+static HttpClient CreateHttpClient()
+{
+    var handler = new HttpClientHandler
+    {
+        AutomaticDecompression = DecompressionMethods.All,
+    };
+
+    return new HttpClient(handler)
+    {
+        Timeout = TimeSpan.FromMinutes(10),
+    };
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+sealed record VendorSources(string PostgresqlVersion, string PostgresqlSourceBaseUrl);

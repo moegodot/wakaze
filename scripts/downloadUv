@@ -1,0 +1,317 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Formats.Tar;
+using System.IO.Compression;
+using System.Net;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        ValidateArguments(args);
+
+        var scriptPath = GetScriptPath();
+        var repositoryRoot = GetRepositoryRoot(scriptPath);
+        var sources = LoadVendorSources(repositoryRoot);
+        var asset = ResolveAssetName();
+        var downloadUrl = $"{sources.UvReleaseBaseUrl.TrimEnd('/')}/{sources.UvVersion}/{asset.FileName}";
+
+        var outputDirectory = Path.Combine(repositoryRoot, "vendors", "binary", "uv");
+        var temporaryRoot = Path.Combine(Path.GetTempPath(), $"wakaze-download-uv-{Guid.NewGuid():N}");
+        var archivePath = Path.Combine(temporaryRoot, asset.FileName);
+        var extractionDirectory = Path.Combine(temporaryRoot, "extracted");
+
+        Directory.CreateDirectory(temporaryRoot);
+        Directory.CreateDirectory(extractionDirectory);
+
+        try
+        {
+            Log.Information("Downloading uv from {Url}", downloadUrl);
+            await DownloadFileAsync(downloadUrl, archivePath);
+
+            Log.Information("Extracting uv asset {Asset}", asset.FileName);
+            ExtractArchive(archivePath, extractionDirectory, asset.IsZip);
+
+            var extractedRoot = GetExtractionRoot(extractionDirectory);
+
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+
+            Directory.CreateDirectory(outputDirectory);
+            CopyDirectoryContents(extractedRoot, outputDirectory);
+            EnsureExecutable(outputDirectory);
+
+            Log.Information("Installed uv to {Path}", Path.GetRelativePath(repositoryRoot, outputDirectory));
+            return 0;
+        }
+        finally
+        {
+            if (Directory.Exists(temporaryRoot))
+            {
+                Directory.Delete(temporaryRoot, recursive: true);
+            }
+        }
+    }
+    catch (UsageException ex)
+    {
+        Log.Error("Error: {Message}", ex.Message);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Unhandled error while downloading uv.");
+        return 1;
+    }
+}
+
+static void ValidateArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        return;
+    }
+
+    throw new UsageException("downloadUv does not accept arguments.");
+}
+
+static VendorSources LoadVendorSources(string repositoryRoot)
+{
+    var configPath = Path.Combine(repositoryRoot, "vendors", "vendors_source.json");
+    if (!File.Exists(configPath))
+    {
+        throw new InvalidOperationException($"Unable to locate vendor source config at '{configPath}'.");
+    }
+
+    using var document = JsonDocument.Parse(File.ReadAllText(configPath));
+
+    return new VendorSources(
+        GetRequiredString(document.RootElement, "uv", "version"),
+        GetRequiredString(document.RootElement, "uv", "releaseBaseUrl"));
+}
+
+static string GetRequiredString(JsonElement rootElement, string sectionName, string propertyName)
+{
+    if (!rootElement.TryGetProperty(sectionName, out var sectionElement))
+    {
+        throw new InvalidOperationException($"The '{sectionName}' section is missing from vendors/vendors_source.json.");
+    }
+
+    if (!sectionElement.TryGetProperty(propertyName, out var propertyElement))
+    {
+        throw new InvalidOperationException($"The '{sectionName}.{propertyName}' property is missing from vendors/vendors_source.json.");
+    }
+
+    var value = propertyElement.GetString();
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        throw new InvalidOperationException($"The '{sectionName}.{propertyName}' property in vendors/vendors_source.json cannot be empty.");
+    }
+
+    return value;
+}
+
+static UvAsset ResolveAssetName()
+{
+    if (OperatingSystem.IsMacOS())
+    {
+        return RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.Arm64 => new UvAsset("uv-aarch64-apple-darwin.tar.gz", false),
+            Architecture.X64 => new UvAsset("uv-x86_64-apple-darwin.tar.gz", false),
+            _ => throw new InvalidOperationException($"Unsupported macOS architecture '{RuntimeInformation.ProcessArchitecture}'."),
+        };
+    }
+
+    if (OperatingSystem.IsWindows())
+    {
+        return RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.Arm64 => new UvAsset("uv-aarch64-pc-windows-msvc.zip", true),
+            Architecture.X64 => new UvAsset("uv-x86_64-pc-windows-msvc.zip", true),
+            Architecture.X86 => new UvAsset("uv-i686-pc-windows-msvc.zip", true),
+            _ => throw new InvalidOperationException($"Unsupported Windows architecture '{RuntimeInformation.ProcessArchitecture}'."),
+        };
+    }
+
+    if (OperatingSystem.IsLinux())
+    {
+        var isMusl = File.Exists("/etc/alpine-release");
+
+        return RuntimeInformation.ProcessArchitecture switch
+        {
+            Architecture.Arm64 => new UvAsset(isMusl ? "uv-aarch64-unknown-linux-musl.tar.gz" : "uv-aarch64-unknown-linux-gnu.tar.gz", false),
+            Architecture.X64 => new UvAsset(isMusl ? "uv-x86_64-unknown-linux-musl.tar.gz" : "uv-x86_64-unknown-linux-gnu.tar.gz", false),
+            Architecture.X86 => new UvAsset(isMusl ? "uv-i686-unknown-linux-musl.tar.gz" : "uv-i686-unknown-linux-gnu.tar.gz", false),
+            Architecture.Arm => new UvAsset(isMusl ? "uv-armv7-unknown-linux-musleabihf.tar.gz" : "uv-armv7-unknown-linux-gnueabihf.tar.gz", false),
+            _ => throw new InvalidOperationException($"Unsupported Linux architecture '{RuntimeInformation.ProcessArchitecture}'."),
+        };
+    }
+
+    throw new InvalidOperationException($"Unsupported operating system '{RuntimeInformation.OSDescription}'.");
+}
+
+static async Task DownloadFileAsync(string url, string destinationPath)
+{
+    var destinationDirectory = Path.GetDirectoryName(destinationPath)
+        ?? throw new InvalidOperationException($"Unable to resolve the output directory for '{destinationPath}'.");
+    Directory.CreateDirectory(destinationDirectory);
+
+    try
+    {
+        using var httpClient = CreateHttpClient();
+        using var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync();
+        await using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await responseStream.CopyToAsync(fileStream);
+        await fileStream.FlushAsync();
+    }
+    catch
+    {
+        if (File.Exists(destinationPath))
+        {
+            File.Delete(destinationPath);
+        }
+
+        throw;
+    }
+}
+
+static void ExtractArchive(string archivePath, string destinationDirectory, bool isZip)
+{
+    if (isZip)
+    {
+        ZipFile.ExtractToDirectory(archivePath, destinationDirectory, overwriteFiles: true);
+        return;
+    }
+
+    using var archiveStream = File.OpenRead(archivePath);
+    using var gzipStream = new GZipStream(archiveStream, CompressionMode.Decompress);
+    TarFile.ExtractToDirectory(gzipStream, destinationDirectory, overwriteFiles: true);
+}
+
+static string GetExtractionRoot(string extractionDirectory)
+{
+    var directories = Directory.GetDirectories(extractionDirectory);
+    var files = Directory.GetFiles(extractionDirectory);
+
+    if (directories.Length == 1 && files.Length == 0)
+    {
+        return directories[0];
+    }
+
+    return extractionDirectory;
+}
+
+static void CopyDirectoryContents(string sourceDirectory, string destinationDirectory)
+{
+    foreach (var directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+    {
+        var relativePath = Path.GetRelativePath(sourceDirectory, directory);
+        Directory.CreateDirectory(Path.Combine(destinationDirectory, relativePath));
+    }
+
+    foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+    {
+        var relativePath = Path.GetRelativePath(sourceDirectory, file);
+        var destinationPath = Path.Combine(destinationDirectory, relativePath);
+        var destinationParent = Path.GetDirectoryName(destinationPath)
+            ?? throw new InvalidOperationException($"Unable to resolve the output directory for '{destinationPath}'.");
+
+        Directory.CreateDirectory(destinationParent);
+        File.Copy(file, destinationPath, overwrite: true);
+    }
+}
+
+static void EnsureExecutable(string outputDirectory)
+{
+    if (OperatingSystem.IsWindows())
+    {
+        return;
+    }
+
+    SetUnixModeIfExists(Path.Combine(outputDirectory, "uv"));
+    SetUnixModeIfExists(Path.Combine(outputDirectory, "uvx"));
+}
+
+static void SetUnixModeIfExists(string path)
+{
+    if (!File.Exists(path))
+    {
+        return;
+    }
+
+    File.SetUnixFileMode(
+        path,
+        UnixFileMode.UserRead
+        | UnixFileMode.UserWrite
+        | UnixFileMode.UserExecute
+        | UnixFileMode.GroupRead
+        | UnixFileMode.GroupExecute
+        | UnixFileMode.OtherRead
+        | UnixFileMode.OtherExecute);
+}
+
+static HttpClient CreateHttpClient()
+{
+    var handler = new HttpClientHandler
+    {
+        AutomaticDecompression = DecompressionMethods.All,
+    };
+
+    return new HttpClient(handler)
+    {
+        Timeout = TimeSpan.FromMinutes(10),
+    };
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+sealed record VendorSources(string UvVersion, string UvReleaseBaseUrl);
+
+sealed record UvAsset(string FileName, bool IsZip);
