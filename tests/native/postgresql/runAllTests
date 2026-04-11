@@ -1,0 +1,179 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        ValidateArguments(args);
+
+        var repositoryRoot = GetRepositoryRoot(GetScriptPath());
+        var tests = new[]
+        {
+            new NativeTestDefinition("testServerLifecycle", "Start, stop, and restart the copied PostgreSQL install."),
+            new NativeTestDefinition("testRoleLifecycle", "Create and drop a role using the copied PostgreSQL install."),
+            new NativeTestDefinition("testTableLifecycle", "Create, query, and drop a table using the copied PostgreSQL install."),
+            new NativeTestDefinition("testBackupAndRestore", "Exercise extension loading plus dump and restore from the copied PostgreSQL install."),
+            new NativeTestDefinition("testPortableDependencies", "Audit the copied PostgreSQL install for relocatable dynamic-library references."),
+        };
+
+        var results = new List<NativeTestResult>(tests.Length);
+        foreach (var test in tests)
+        {
+            var scriptPath = Path.Combine(repositoryRoot, "tests", "native", "postgresql", test.ScriptName);
+            var startTime = Stopwatch.StartNew();
+            var commandResult = await RunCommandAsync(
+                "dotnet",
+                ["run", "--file", scriptPath, "--"],
+                repositoryRoot,
+                captureOutput: true);
+
+            startTime.Stop();
+
+            var combinedOutput = CombineOutput(commandResult.StandardOutput, commandResult.StandardError);
+            Log.Information("Test {ScriptName} completed with exit code {ExitCode} in {Duration}.", test.ScriptName, commandResult.ExitCode, startTime.Elapsed);
+            if (!string.IsNullOrWhiteSpace(combinedOutput))
+            {
+                Console.WriteLine($"----- {test.ScriptName} output begin -----");
+                Console.WriteLine(combinedOutput.TrimEnd());
+                Console.WriteLine($"----- {test.ScriptName} output end -----");
+            }
+
+            results.Add(new NativeTestResult(test, commandResult.ExitCode == 0 ? "PASS" : "FAIL", startTime.Elapsed, combinedOutput));
+        }
+
+        PrintSummary(results);
+        return results.All(result => result.Status == "PASS") ? 0 : 1;
+    }
+    catch (UsageException ex)
+    {
+        Log.Error("Error: {Message}", ex.Message);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "PostgreSQL native test aggregation failed.");
+        return 1;
+    }
+}
+
+static void ValidateArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        return;
+    }
+
+    throw new UsageException("runAllTests does not accept arguments.");
+}
+
+static void PrintSummary(IReadOnlyList<NativeTestResult> results)
+{
+    Console.WriteLine();
+    Console.WriteLine("| Test | Result | Duration | Purpose |");
+    Console.WriteLine("| --- | --- | --- | --- |");
+
+    foreach (var result in results)
+    {
+        Console.WriteLine($"| {result.Definition.ScriptName} | {result.Status} | {result.Duration:mm\\:ss\\.fff} | {result.Definition.Description} |");
+    }
+}
+
+static string CombineOutput(string standardOutput, string standardError)
+{
+    if (string.IsNullOrWhiteSpace(standardError))
+    {
+        return standardOutput;
+    }
+
+    if (string.IsNullOrWhiteSpace(standardOutput))
+    {
+        return standardError;
+    }
+
+    return $"{standardOutput.TrimEnd()}{Environment.NewLine}{standardError.TrimEnd()}{Environment.NewLine}";
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+static async Task<CommandResult> RunCommandAsync(
+    string fileName,
+    IReadOnlyList<string> arguments,
+    string workingDirectory,
+    bool captureOutput = false)
+{
+    var startInfo = new ProcessStartInfo
+    {
+        FileName = fileName,
+        WorkingDirectory = workingDirectory,
+        RedirectStandardOutput = captureOutput,
+        RedirectStandardError = captureOutput,
+        UseShellExecute = false,
+    };
+
+    foreach (var argument in arguments)
+    {
+        startInfo.ArgumentList.Add(argument);
+    }
+
+    using var process = new Process { StartInfo = startInfo };
+    process.Start();
+
+    string standardOutput = string.Empty;
+    string standardError = string.Empty;
+
+    if (captureOutput)
+    {
+        standardOutput = await process.StandardOutput.ReadToEndAsync();
+        standardError = await process.StandardError.ReadToEndAsync();
+    }
+
+    await process.WaitForExitAsync();
+    return new CommandResult(process.ExitCode, standardOutput, standardError);
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+sealed record CommandResult(int ExitCode, string StandardOutput, string StandardError);
+
+sealed record NativeTestDefinition(string ScriptName, string Description);
+
+sealed record NativeTestResult(NativeTestDefinition Definition, string Status, TimeSpan Duration, string Output);

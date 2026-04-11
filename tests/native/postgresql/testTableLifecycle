@@ -1,0 +1,305 @@
+#!/usr/bin/env dotnet
+
+#:package Serilog
+#:package Serilog.Sinks.Console
+
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using Serilog;
+
+return await RunAsync(args);
+
+static async Task<int> RunAsync(string[] args)
+{
+    using var log = new LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger();
+    Log.Logger = log;
+
+    try
+    {
+        ValidateArguments(args);
+
+        var repositoryRoot = GetRepositoryRoot(GetScriptPath());
+        await using var environment = await PostgresTestEnvironment.CreateAsync(repositoryRoot, "table-lifecycle");
+
+        await environment.InitializeAsync();
+        await environment.StartAsync();
+
+        await environment.RunInstalledAsync("createdb", ["-h", environment.SocketDirectory, "portable_table_db"]);
+
+        await environment.RunInstalledAsync(
+            "psql",
+            [
+                "-h",
+                environment.SocketDirectory,
+                "-d",
+                "portable_table_db",
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-c",
+                "CREATE TABLE portability_check(id integer primary key, payload text not null); INSERT INTO portability_check(id, payload) VALUES (1, 'portable'), (2, 'durable');"
+            ]);
+
+        var rowCount = await environment.RunInstalledCaptureAsync(
+            "psql",
+            ["-h", environment.SocketDirectory, "-d", "portable_table_db", "-Atqc", "SELECT count(*) FROM portability_check;"]);
+        AssertEqual("2", rowCount.StandardOutput.Trim(), "portability_check row count");
+
+        var payloads = await environment.RunInstalledCaptureAsync(
+            "psql",
+            ["-h", environment.SocketDirectory, "-d", "portable_table_db", "-Atqc", "SELECT string_agg(payload, ',' ORDER BY id) FROM portability_check;"]);
+        AssertEqual("portable,durable", payloads.StandardOutput.Trim(), "payload aggregation");
+
+        await environment.RunInstalledAsync(
+            "psql",
+            ["-h", environment.SocketDirectory, "-d", "portable_table_db", "-v", "ON_ERROR_STOP=1", "-c", "DROP TABLE portability_check;"]);
+
+        var tableExists = await environment.RunInstalledCaptureAsync(
+            "psql",
+            ["-h", environment.SocketDirectory, "-d", "portable_table_db", "-Atqc", "SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename = 'portability_check';"]);
+        AssertEqual("0", tableExists.StandardOutput.Trim(), "portability_check removal");
+
+        await environment.RunInstalledAsync("dropdb", ["-h", environment.SocketDirectory, "portable_table_db"]);
+        await environment.StopAsync();
+
+        Log.Information("Table lifecycle test passed.");
+        return 0;
+    }
+    catch (UsageException ex)
+    {
+        Log.Error("Error: {Message}", ex.Message);
+        return 1;
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Table lifecycle test failed.");
+        return 1;
+    }
+}
+
+static void ValidateArguments(IReadOnlyList<string> args)
+{
+    if (args.Count == 0)
+    {
+        return;
+    }
+
+    throw new UsageException("testTableLifecycle does not accept arguments.");
+}
+
+static void AssertEqual(string expected, string actual, string operation)
+{
+    if (!string.Equals(expected, actual, StringComparison.Ordinal))
+    {
+        throw new InvalidOperationException($"Expected '{operation}' to return '{expected}', but got '{actual}'.");
+    }
+}
+
+static string GetScriptPath([CallerFilePath] string path = "")
+{
+    return path;
+}
+
+static string GetRepositoryRoot(string scriptPath)
+{
+    var currentDirectory = Path.GetDirectoryName(scriptPath)
+        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
+
+    while (true)
+    {
+        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
+        {
+            return currentDirectory;
+        }
+
+        var parentDirectory = Path.GetDirectoryName(currentDirectory);
+        if (parentDirectory is null)
+        {
+            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
+        }
+
+        currentDirectory = parentDirectory;
+    }
+}
+
+static class CommandRunner
+{
+    public static async Task<CommandResult> RunAsync(
+        string fileName,
+        IReadOnlyList<string> arguments,
+        string workingDirectory,
+        bool captureOutput = false)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = captureOutput,
+            RedirectStandardError = captureOutput,
+            UseShellExecute = false,
+        };
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        string standardOutput = string.Empty;
+        string standardError = string.Empty;
+
+        if (captureOutput)
+        {
+            standardOutput = await process.StandardOutput.ReadToEndAsync();
+            standardError = await process.StandardError.ReadToEndAsync();
+        }
+
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Command '{fileName}' exited with code {process.ExitCode}.{Environment.NewLine}" +
+                $"stdout:{Environment.NewLine}{standardOutput}{Environment.NewLine}" +
+                $"stderr:{Environment.NewLine}{standardError}");
+        }
+
+        return new CommandResult(process.ExitCode, standardOutput, standardError);
+    }
+}
+
+sealed class PostgresTestEnvironment : IAsyncDisposable
+{
+    private PostgresTestEnvironment(string rootDirectory, string installDirectory, string dataDirectory, string socketDirectory, string logFilePath)
+    {
+        RootDirectory = rootDirectory;
+        InstallDirectory = installDirectory;
+        DataDirectory = dataDirectory;
+        SocketDirectory = socketDirectory;
+        LogFilePath = logFilePath;
+    }
+
+    public string RootDirectory { get; }
+    public string InstallDirectory { get; }
+    public string DataDirectory { get; }
+    public string SocketDirectory { get; }
+    public string LogFilePath { get; }
+
+    public bool IsRunning { get; private set; }
+
+    public static async Task<PostgresTestEnvironment> CreateAsync(string repositoryRoot, string scenarioName)
+    {
+        var sourceInstallDirectory = Path.Combine(repositoryRoot, "vendors", "install", "postgresql");
+        if (!Directory.Exists(sourceInstallDirectory))
+        {
+            throw new InvalidOperationException($"PostgreSQL install directory was not found at '{sourceInstallDirectory}'.");
+        }
+
+        var temporaryBaseDirectory = OperatingSystem.IsMacOS() ? "/tmp" : Path.GetTempPath();
+        var rootDirectory = Path.Combine(temporaryBaseDirectory, $"wakaze-pg-{Guid.NewGuid():N}");
+        var installDirectory = Path.Combine(rootDirectory, "postgresql");
+        var dataDirectory = Path.Combine(rootDirectory, "data");
+        var socketDirectory = Path.Combine(rootDirectory, "socket");
+        var logFilePath = Path.Combine(rootDirectory, "postgres.log");
+
+        Directory.CreateDirectory(rootDirectory);
+        Directory.CreateDirectory(socketDirectory);
+
+        await CommandRunner.RunAsync("/bin/cp", ["-R", sourceInstallDirectory, installDirectory], repositoryRoot);
+
+        return new PostgresTestEnvironment(rootDirectory, installDirectory, dataDirectory, socketDirectory, logFilePath);
+    }
+
+    public Task InitializeAsync()
+    {
+        return RunInstalledAsync(
+            "initdb",
+            ["-D", DataDirectory, "--auth-local=trust", "--auth-host=trust"]);
+    }
+
+    public async Task StartAsync()
+    {
+        if (IsRunning)
+        {
+            return;
+        }
+
+        try
+        {
+            await RunInstalledAsync(
+                "pg_ctl",
+                ["-D", DataDirectory, "-l", LogFilePath, "-o", $"-c listen_addresses='' -k {SocketDirectory}", "start"]);
+        }
+        catch (Exception ex)
+        {
+            var logOutput = File.Exists(LogFilePath)
+                ? await File.ReadAllTextAsync(LogFilePath)
+                : "<postgres log file was not created>";
+            throw new InvalidOperationException(
+                $"Failed to start PostgreSQL. Log file '{LogFilePath}':{Environment.NewLine}{logOutput}",
+                ex);
+        }
+
+        IsRunning = true;
+    }
+
+    public async Task StopAsync()
+    {
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        await RunInstalledAsync("pg_ctl", ["-D", DataDirectory, "-m", "fast", "stop"]);
+        IsRunning = false;
+    }
+
+    public Task RunInstalledAsync(string toolName, IReadOnlyList<string> arguments)
+    {
+        return CommandRunner.RunAsync(GetInstalledToolPath(toolName), arguments, RootDirectory);
+    }
+
+    public Task<CommandResult> RunInstalledCaptureAsync(string toolName, IReadOnlyList<string> arguments)
+    {
+        return CommandRunner.RunAsync(GetInstalledToolPath(toolName), arguments, RootDirectory, captureOutput: true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await StopAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to stop PostgreSQL before cleanup.");
+        }
+
+        try
+        {
+            await CommandRunner.RunAsync("/bin/rm", ["-rf", RootDirectory], "/");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to delete temporary PostgreSQL test directory '{RootDirectory}'.", RootDirectory);
+        }
+    }
+
+    private string GetInstalledToolPath(string toolName)
+    {
+        var path = Path.Combine(InstallDirectory, "bin", toolName);
+        if (!File.Exists(path))
+        {
+            throw new InvalidOperationException($"Required PostgreSQL tool was not found at '{path}'.");
+        }
+
+        return path;
+    }
+}
+
+sealed class UsageException(string message) : Exception(message);
+
+sealed record CommandResult(int ExitCode, string StandardOutput, string StandardError);

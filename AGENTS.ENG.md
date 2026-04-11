@@ -6,6 +6,10 @@
     - 运行全部 managed 测试：`dotnet run --file eng/scripts/runManagedTests --`
     - 按筛选条件运行 managed 测试：
       `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
+- `runAllTests`：先运行 `tests/native/postgresql/runAllTests`，再运行 `eng/scripts/runManagedTests`。传入参数仅透传给 managed 测试聚合器。
+    - 运行全部 native + managed 测试：`dotnet run --file eng/scripts/runAllTests --`
+    - 运行全部 native 测试并按条件筛选 managed 测试：
+      `dotnet run --file eng/scripts/runAllTests -- --treenode-filter "/*/*/Blake3Tests/*"`
 - `newManagedProject`：按仓库约定创建新的 `src/managed` 项目，可选配套 `tests/managed` 测试项目，并自动接入`Wakaze.slnx`。
     - 创建新的 managed 项目：
       `dotnet run --file eng/scripts/newManagedProject -- --name Kawayi.Wakaze.Example --kind library --with-tests yes`
