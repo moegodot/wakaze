@@ -9,3 +9,5 @@ Thumbs.db
 *.user
 project.assets.json
 TestResults
+build
+

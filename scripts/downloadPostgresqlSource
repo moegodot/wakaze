@@ -5,7 +5,9 @@
 
 using System.Net;
 using System.Net.Http;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Formats.Tar;
 using System.Text.Json;
 using Serilog;
 
@@ -29,13 +31,40 @@ static async Task<int> RunAsync(string[] args)
         var fileName = $"postgresql-{sources.PostgresqlVersion}.tar.gz";
         var downloadUrl = $"{sources.PostgresqlSourceBaseUrl.TrimEnd('/')}/v{sources.PostgresqlVersion}/{fileName}";
         var outputDirectory = Path.Combine(repositoryRoot, "vendors", "native", "postgresql");
-        var outputPath = Path.Combine(outputDirectory, fileName);
+        var temporaryRoot = Path.Combine(Path.GetTempPath(), $"wakaze-download-postgresql-{Guid.NewGuid():N}");
+        var archivePath = Path.Combine(temporaryRoot, fileName);
+        var extractionDirectory = Path.Combine(temporaryRoot, "extracted");
 
-        Directory.CreateDirectory(outputDirectory);
+        Directory.CreateDirectory(temporaryRoot);
+        Directory.CreateDirectory(extractionDirectory);
 
-        Log.Information("Downloading PostgreSQL source from {Url}", downloadUrl);
-        await DownloadFileAsync(downloadUrl, outputPath);
-        Log.Information("Saved PostgreSQL source to {Path}", Path.GetRelativePath(repositoryRoot, outputPath));
+        try
+        {
+            Log.Information("Downloading PostgreSQL source from {Url}", downloadUrl);
+            await DownloadFileAsync(downloadUrl, archivePath);
+
+            Log.Information("Extracting PostgreSQL source to {Path}", Path.GetRelativePath(repositoryRoot, outputDirectory));
+            ExtractArchive(archivePath, extractionDirectory);
+
+            var extractedRoot = GetExtractionRoot(extractionDirectory);
+
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+
+            Directory.CreateDirectory(outputDirectory);
+            CopyDirectoryContents(extractedRoot, outputDirectory);
+
+            Log.Information("Extracted PostgreSQL source to {Path}", Path.GetRelativePath(repositoryRoot, outputDirectory));
+        }
+        finally
+        {
+            if (Directory.Exists(temporaryRoot))
+            {
+                Directory.Delete(temporaryRoot, recursive: true);
+            }
+        }
 
         return 0;
     }
@@ -126,6 +155,46 @@ static async Task DownloadFileAsync(string url, string destinationPath)
         }
 
         throw;
+    }
+}
+
+static void ExtractArchive(string archivePath, string destinationDirectory)
+{
+    using var archiveStream = File.OpenRead(archivePath);
+    using var gzipStream = new GZipStream(archiveStream, CompressionMode.Decompress);
+    TarFile.ExtractToDirectory(gzipStream, destinationDirectory, overwriteFiles: true);
+}
+
+static string GetExtractionRoot(string extractionDirectory)
+{
+    var directories = Directory.GetDirectories(extractionDirectory);
+    var files = Directory.GetFiles(extractionDirectory);
+
+    if (directories.Length == 1 && files.Length == 0)
+    {
+        return directories[0];
+    }
+
+    return extractionDirectory;
+}
+
+static void CopyDirectoryContents(string sourceDirectory, string destinationDirectory)
+{
+    foreach (var directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+    {
+        var relativePath = Path.GetRelativePath(sourceDirectory, directory);
+        Directory.CreateDirectory(Path.Combine(destinationDirectory, relativePath));
+    }
+
+    foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+    {
+        var relativePath = Path.GetRelativePath(sourceDirectory, file);
+        var destinationPath = Path.Combine(destinationDirectory, relativePath);
+        var destinationParent = Path.GetDirectoryName(destinationPath)
+            ?? throw new InvalidOperationException($"Unable to resolve the output directory for '{destinationPath}'.");
+
+        Directory.CreateDirectory(destinationParent);
+        File.Copy(file, destinationPath, overwrite: true);
     }
 }
 
