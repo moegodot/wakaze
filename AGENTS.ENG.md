@@ -8,8 +8,11 @@
 ## 当前脚本清单
 
 - `eng/scripts/runManagedTests`
-    - 聚合发现并逐个运行 `tests/` 下的 `*.Tests.csproj`
-    - 会把 `--` 之后的测试程序参数原样透传给每个 managed 测试项目
+    - 聚合发现 `tests/` 下的 `*.Tests.csproj`
+    - 会先对 `Wakaze.slnx` 执行一次 solution 级 `dotnet restore` 和 `dotnet build`
+    - 然后对每个已构建的测试程序集使用 `dotnet exec` 逐个运行
+    - 必须显式提供 `--configuration <Debug|Release>`
+    - 会在固定前置参数之后把 `--` 之后的测试程序参数透传给每个 managed 测试程序集
 - `eng/scripts/newManagedProject`
     - 按仓库约定创建新的 `src/managed` 项目
     - 可选创建配套 `tests/<ProjectName>.Tests`
@@ -21,9 +24,9 @@
 ## 已验证命令
 
 - 运行全部 managed 测试：
-    - `dotnet run --file eng/scripts/runManagedTests --`
+    - `dotnet run --file eng/scripts/runManagedTests -- --configuration Debug`
 - 按 `Blake3Tests` 筛选 managed 测试：
-    - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
+    - `dotnet run --file eng/scripts/runManagedTests -- --configuration Release --treenode-filter "/*/*/Blake3Tests/*"`
 - 查看 `newManagedProject` 的实际帮助：
     - `dotnet run --file eng/scripts/newManagedProject -- --help`
 - 更新 NuGet lock file：
@@ -56,6 +59,7 @@
 ## 使用建议
 
 - 需要运行 managed 测试时，优先使用 `eng/scripts/runManagedTests`
+- 使用 `eng/scripts/runManagedTests` 时，始终显式传入 `--configuration Debug` 或 `--configuration Release`
 - 需要新增受仓库约定约束的 managed 项目时，优先用 `eng/scripts/newManagedProject`，不要手工复制目录结构
 - 需要刷新 lock file 时，优先用 `eng/scripts/updateNugetLockFiles`
 - 需要验证脚本行为或维护脚本文档时，可以直接读取 `eng/scripts` 下的实际实现；不要让“不要读脚本”这类习惯阻碍事实核对

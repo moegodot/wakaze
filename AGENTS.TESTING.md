@@ -8,6 +8,8 @@
 - 命令行场景下，优先使用 `dotnet run --project ... --` 或 `dotnet run --file ... --`
 - 测试程序参数必须放在 `--` 之后
 - `eng/scripts/runManagedTests` 只聚合 `tests` 下的测试项目
+- `eng/scripts/runManagedTests` 要求显式提供 `--configuration <Debug|Release>`
+- `eng/scripts/runManagedTests` 会先对 `Wakaze.slnx` 执行 solution 级 `restore/build`，再对每个已构建测试程序集使用 `dotnet exec`
 
 ## 当前测试项目
 
@@ -31,17 +33,18 @@
 - 查看单个 managed 测试程序帮助：
     - `dotnet run --project tests/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj -- --help`
 - 运行全部 `tests`：
-    - `dotnet run --file eng/scripts/runManagedTests --`
+    - `dotnet run --file eng/scripts/runManagedTests -- --configuration Debug`
 - 运行带树节点筛选的 `tests`：
-    - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
+    - `dotnet run --file eng/scripts/runManagedTests -- --configuration Release --treenode-filter "/*/*/Blake3Tests/*"`
 - 查看 PostgreSQL 测试发现结果：
   -
   `dotnet run --project tests/Kawayi.Wakaze.Db.PostgreSql.Tests/Kawayi.Wakaze.Db.PostgreSql.Tests.csproj -- --list-tests`
 
 ## 当前已验证行为
 
-- `dotnet run --file eng/scripts/runManagedTests --` 在当前工作区可通过，并覆盖 `tests` 下全部 10 个测试项目
+- `dotnet run --file eng/scripts/runManagedTests -- --configuration Debug` 在当前工作区可通过，并覆盖 `tests` 下全部 10 个测试项目
 - `--treenode-filter` 在当前仓库可工作
+- `eng/scripts/runManagedTests` 的耗时汇总只统计每个测试程序集的 `dotnet exec` 执行时间，不统计前置的 solution 级 `restore/build`
 - 通过 `eng/scripts/runManagedTests` 传入筛选参数时，未命中的测试项目按跳过处理，不会把整个聚合运行标记为失败
 - PostgreSQL 测试当前可通过，因为工作区中已经存在 `vendors/install/postgresql`
 - `tests/Kawayi.Wakaze.Db.PostgreSql.Tests` 包含 provider 行为测试和 PostgreSQL 安装 / 生命周期测试

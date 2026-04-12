@@ -1,92 +1,266 @@
 #!/usr/bin/env dotnet
 
-#:package Serilog
-#:package Serilog.Sinks.Console
 #:project ../../src/managed/Kawayi.Wakaze.IO/Kawayi.Wakaze.IO.csproj
 #:project ../../src/managed/Kawayi.Wakaze.Process/Kawayi.Wakaze.Process.csproj
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Kawayi.Wakaze.IO;
 using Kawayi.Wakaze.Process;
-using Serilog;
 
 return await RunAsync(args);
 
-static async Task<int> RunAsync(string[] forwardedArguments)
+static async Task<int> RunAsync(string[] rawArguments)
 {
-    using var log = new LoggerConfiguration()
-        .WriteTo.Console()
-        .CreateLogger();
-    Log.Logger = log;
-
-    var scriptPath = GetScriptPath();
-    var repositoryRoot = RepositoryRootLocator.FindContainingDirectory(scriptPath, "wakaze.root");
-    var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests"));
-
-    var testProjects = Directory
-        .EnumerateFiles(managedTestsDirectory, "*.Tests.csproj", SearchOption.AllDirectories)
-        .OrderBy(static path => path, StringComparer.Ordinal)
-        .ToArray();
-
-    if (testProjects.Length == 0)
+    var parsedArguments = ParseArguments(rawArguments);
+    if (parsedArguments.ShowHelp)
     {
-        Log.Error($"No test projects matching '*.Tests.csproj' were found under '{managedTestsDirectory}'.");
+        if (parsedArguments.ErrorMessage is not null)
+        {
+            WriteError(parsedArguments.ErrorMessage);
+        }
+
+        WriteUsage();
+        return parsedArguments.ErrorMessage is null ? 0 : 1;
+    }
+
+    try
+    {
+        var scriptPath = GetScriptPath();
+        var repositoryRoot = RepositoryRootLocator.FindContainingDirectory(scriptPath, "wakaze.root");
+        var testsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests"));
+
+        var testProjects = Directory
+            .EnumerateFiles(testsDirectory, "*.Tests.csproj", SearchOption.AllDirectories)
+            .OrderBy(static path => path, StringComparer.Ordinal)
+            .Select(static path => new TestProject(
+                path,
+                Path.GetFileNameWithoutExtension(path),
+                SimplifyProjectName(Path.GetFileNameWithoutExtension(path))))
+            .ToArray();
+
+        if (testProjects.Length == 0)
+        {
+            WriteError($"No test projects matching '*.Tests.csproj' were found under '{testsDirectory}'.");
+            return 1;
+        }
+
+        var configuration = parsedArguments.Configuration!;
+        var solutionPath = Path.Combine(repositoryRoot, "Wakaze.slnx");
+        var hasTestSelectionArguments = HasTestSelectionArguments(parsedArguments.ForwardedArguments);
+        var labelWidth = testProjects.Max(static project => project.DisplayName.Length);
+
+        WriteSection($"Restore and build solution ({configuration})");
+
+        WritePhase("restore", "Wakaze.slnx", labelWidth, configuration, Path.GetFileName(solutionPath));
+        var restoreResult = await RunProcessAsync(
+            repositoryRoot,
+            CreateRestoreArguments(solutionPath),
+            environmentVariables: null);
+        if (restoreResult.ExitCode != 0)
+        {
+            WriteError($"Restore failed for {Path.GetFileName(solutionPath)} (exit code {restoreResult.ExitCode}).");
+            return 1;
+        }
+
+        WritePhase("build", "Wakaze.slnx", labelWidth, configuration, Path.GetFileName(solutionPath));
+        var buildResult = await RunProcessAsync(
+            repositoryRoot,
+            CreateBuildArguments(solutionPath, configuration),
+            environmentVariables: null);
+        if (buildResult.ExitCode != 0)
+        {
+            WriteError($"Build failed for {Path.GetFileName(solutionPath)} (exit code {buildResult.ExitCode}).");
+            return 1;
+        }
+
+        var runnableProjects = testProjects
+            .Select(testProject => new RunnableTestProject(
+                testProject,
+                ResolveBuiltAssemblyPath(testProject.ProjectPath, testProject.ProjectName, configuration)))
+            .ToArray();
+
+        WriteSection($"Run tests ({configuration})");
+
+        var runSummaries = new List<TestRunSummary>(runnableProjects.Length);
+        var failedProjects = new List<string>();
+
+        foreach (var runnableProject in runnableProjects)
+        {
+            var relativePath = Path.GetRelativePath(repositoryRoot, runnableProject.Project.ProjectPath);
+            WritePhase("test", runnableProject.Project.DisplayName, labelWidth, configuration, relativePath);
+
+            var stopwatch = Stopwatch.StartNew();
+            var result = await RunProcessAsync(
+                repositoryRoot,
+                CreateTestExecutionArguments(runnableProject.AssemblyPath, parsedArguments.ForwardedArguments),
+                CreateTestEnvironmentVariables());
+            stopwatch.Stop();
+
+            var status = result.ExitCode switch
+            {
+                0 => TestRunStatus.Passed,
+                8 when hasTestSelectionArguments => TestRunStatus.Skipped,
+                _ => TestRunStatus.Failed
+            };
+
+            runSummaries.Add(new TestRunSummary(
+                runnableProject.Project.DisplayName,
+                status,
+                stopwatch.Elapsed));
+
+            switch (status)
+            {
+                case TestRunStatus.Passed:
+                    WriteStatusLine("passed", Ansi.Success, runnableProject.Project.DisplayName, labelWidth, stopwatch.Elapsed);
+                    break;
+                case TestRunStatus.Skipped:
+                    WriteStatusLine("skipped", Ansi.Warning, runnableProject.Project.DisplayName, labelWidth, stopwatch.Elapsed);
+                    break;
+                default:
+                    WriteStatusLine($"failed ({result.ExitCode})", Ansi.Error, runnableProject.Project.DisplayName, labelWidth, stopwatch.Elapsed);
+                    failedProjects.Add(relativePath);
+                    break;
+            }
+        }
+
+        WriteSummary(runSummaries, configuration);
+
+        Console.WriteLine();
+        if (failedProjects.Count == 0)
+        {
+            Console.WriteLine($"{Ansi.Success}All {runSummaries.Count} test project(s) passed.{Ansi.Reset}");
+            return 0;
+        }
+
+        WriteError($"Test projects failed: {string.Join(", ", failedProjects)}");
         return 1;
     }
-
-    var failedProjects = new List<string>();
-    var hasTestSelectionArguments = HasTestSelectionArguments(forwardedArguments);
-
-    foreach (var testProject in testProjects)
+    catch (Exception ex)
     {
-        var displayPath = Path.GetRelativePath(repositoryRoot, testProject);
-        Log.Information($"==> Running {displayPath}");
-
-        var result = await ProcessCommandRunner.RunAsync(
-            new ProcessCommandRequest(
-                "dotnet",
-                CreateArguments(testProject, forwardedArguments),
-                repositoryRoot,
-                CaptureOutput: false,
-                EnvironmentVariables: null,
-                ThrowOnNonZeroExit: false));
-
-        if (result.ExitCode == 0)
-        {
-            Log.Information($"<== Passed {displayPath}");
-            continue;
-        }
-
-        if (hasTestSelectionArguments && result.ExitCode == 8)
-        {
-            Log.Information($"<== Skipped {displayPath} (no matching tests)");
-            continue;
-        }
-
-        Log.Error($"<== Failed {displayPath} (exit code {result.ExitCode})");
-        failedProjects.Add(displayPath);
+        WriteError(ex.Message);
+        return 1;
     }
-
-    Log.Information($"Executed {testProjects.Length} test project(s).");
-
-    if (failedProjects.Count == 0)
-    {
-        Log.Information("All managed test projects passed.");
-        return 0;
-    }
-
-    Log.Error($"Managed test projects failed: {string.Join(", ", failedProjects)}");
-    return 1;
 }
 
-static IReadOnlyList<string> CreateArguments(string testProject, IEnumerable<string> forwardedArguments)
+static CommandLineArguments ParseArguments(string[] rawArguments)
+{
+    string? configuration = null;
+    var forwardedArguments = new List<string>();
+
+    for (var index = 0; index < rawArguments.Length; index++)
+    {
+        var argument = rawArguments[index];
+
+        if (argument is "--help" or "-h")
+        {
+            return new CommandLineArguments(null, Array.Empty<string>(), true, null);
+        }
+
+        if (argument is "--configuration" or "-c")
+        {
+            if (index + 1 >= rawArguments.Length)
+            {
+                return new CommandLineArguments(null, Array.Empty<string>(), true, "Missing value for --configuration.");
+            }
+
+            if (configuration is not null)
+            {
+                return new CommandLineArguments(null, Array.Empty<string>(), true, "--configuration can only be specified once.");
+            }
+
+            configuration = NormalizeConfiguration(rawArguments[++index]);
+            if (configuration is null)
+            {
+                return new CommandLineArguments(null, Array.Empty<string>(), true, "--configuration must be either Debug or Release.");
+            }
+
+            continue;
+        }
+
+        if (argument.StartsWith("--configuration=", StringComparison.Ordinal)
+            || argument.StartsWith("-c=", StringComparison.Ordinal))
+        {
+            if (configuration is not null)
+            {
+                return new CommandLineArguments(null, Array.Empty<string>(), true, "--configuration can only be specified once.");
+            }
+
+            var separatorIndex = argument.IndexOf('=');
+            configuration = NormalizeConfiguration(argument[(separatorIndex + 1)..]);
+            if (configuration is null)
+            {
+                return new CommandLineArguments(null, Array.Empty<string>(), true, "--configuration must be either Debug or Release.");
+            }
+
+            continue;
+        }
+
+        forwardedArguments.Add(argument);
+    }
+
+    if (configuration is null)
+    {
+        return new CommandLineArguments(
+            null,
+            Array.Empty<string>(),
+            true,
+            "--configuration <Debug|Release> is required.");
+    }
+
+    return new CommandLineArguments(configuration, forwardedArguments, false, null);
+}
+
+static string? NormalizeConfiguration(string value)
+{
+    if (value.Equals("Debug", StringComparison.OrdinalIgnoreCase))
+    {
+        return "Debug";
+    }
+
+    if (value.Equals("Release", StringComparison.OrdinalIgnoreCase))
+    {
+        return "Release";
+    }
+
+    return null;
+}
+
+static IReadOnlyList<string> CreateRestoreArguments(string solutionPath)
+{
+    return
+    [
+        "restore",
+        solutionPath,
+        "--nologo"
+    ];
+}
+
+static IReadOnlyList<string> CreateBuildArguments(string solutionPath, string configuration)
+{
+    return
+    [
+        "build",
+        solutionPath,
+        "--nologo",
+        "--no-restore",
+        "--configuration",
+        configuration
+    ];
+}
+
+static IReadOnlyList<string> CreateTestExecutionArguments(
+    string assemblyPath,
+    IEnumerable<string> forwardedArguments)
 {
     var arguments = new List<string>
     {
-        "run",
-        "--project",
-        testProject,
-        "--"
+        "exec",
+        assemblyPath,
+        "--log-level",
+        "Warning",
+        "--maximum-parallel-tests",
+        Environment.ProcessorCount.ToString()
     };
 
     foreach (var argument in forwardedArguments)
@@ -95,6 +269,192 @@ static IReadOnlyList<string> CreateArguments(string testProject, IEnumerable<str
     }
 
     return arguments;
+}
+
+static IReadOnlyDictionary<string, string?> CreateTestEnvironmentVariables()
+{
+    return new Dictionary<string, string?>(StringComparer.Ordinal)
+    {
+        ["TUNIT_ENABLE_IDE_STREAMING"] = "0",
+        ["TUNIT_DISCOVERY_DIAGNOSTICS"] = "0",
+        ["TUNIT_EXECUTION_MODE"] = "sourcegeneration",
+        ["TUNIT_DISABLE_LOGO"] = "true"
+    };
+}
+
+static async Task<ProcessCommandResult> RunProcessAsync(
+    string workingDirectory,
+    IReadOnlyList<string> arguments,
+    IReadOnlyDictionary<string, string?>? environmentVariables)
+{
+    return await ProcessCommandRunner.RunAsync(
+        new ProcessCommandRequest(
+            "dotnet",
+            arguments,
+            workingDirectory,
+            CaptureOutput: false,
+            EnvironmentVariables: environmentVariables,
+            ThrowOnNonZeroExit: false));
+}
+
+static string ResolveBuiltAssemblyPath(string testProject, string projectName, string configuration)
+{
+    var projectDirectory = Path.GetDirectoryName(testProject)
+        ?? throw new InvalidOperationException($"Unable to determine the directory for '{testProject}'.");
+    var configurationDirectory = Path.Combine(projectDirectory, "bin", configuration);
+
+    if (!Directory.Exists(configurationDirectory))
+    {
+        throw new InvalidOperationException(
+            $"Build output directory '{configurationDirectory}' was not found for '{testProject}'.");
+    }
+
+    var runtimeConfigFiles = Directory
+        .EnumerateFiles(configurationDirectory, $"{projectName}.runtimeconfig.json", SearchOption.AllDirectories)
+        .OrderBy(static path => path, StringComparer.Ordinal)
+        .ToArray();
+
+    if (runtimeConfigFiles.Length == 0)
+    {
+        throw new InvalidOperationException(
+            $"No runtimeconfig file for '{projectName}' was found under '{configurationDirectory}'.");
+    }
+
+    if (runtimeConfigFiles.Length > 1)
+    {
+        throw new InvalidOperationException(
+            $"Multiple runtimeconfig files for '{projectName}' were found under '{configurationDirectory}'.");
+    }
+
+    var runtimeConfigPath = runtimeConfigFiles[0];
+    const string runtimeConfigSuffix = ".runtimeconfig.json";
+    var assemblyPath = runtimeConfigPath.EndsWith(runtimeConfigSuffix, StringComparison.Ordinal)
+        ? string.Concat(
+            runtimeConfigPath.AsSpan(0, runtimeConfigPath.Length - runtimeConfigSuffix.Length),
+            ".dll")
+        : Path.ChangeExtension(runtimeConfigPath, ".dll");
+    if (!File.Exists(assemblyPath))
+    {
+        throw new InvalidOperationException(
+            $"Built test assembly '{assemblyPath}' was not found.");
+    }
+
+    return assemblyPath;
+}
+
+static string SimplifyProjectName(string projectName)
+{
+    const string prefix = "Kawayi.Wakaze.";
+    const string suffix = ".Tests";
+
+    if (projectName.StartsWith(prefix, StringComparison.Ordinal))
+    {
+        projectName = projectName[prefix.Length..];
+    }
+
+    if (projectName.EndsWith(suffix, StringComparison.Ordinal))
+    {
+        projectName = projectName[..^suffix.Length];
+    }
+
+    return projectName;
+}
+
+static void WriteUsage()
+{
+    Console.WriteLine($"""
+{Ansi.Accent}Usage{Ansi.Reset}
+  dotnet run --file eng/scripts/runManagedTests -- --configuration <Debug|Release> [test-program-args]
+
+{Ansi.Accent}Examples{Ansi.Reset}
+  dotnet run --file eng/scripts/runManagedTests -- --configuration Release
+  dotnet run --file eng/scripts/runManagedTests -- --configuration Debug --treenode-filter "/*/*/Blake3Tests/*"
+""");
+}
+
+static void WriteSection(string title)
+{
+    Console.WriteLine();
+    Console.WriteLine($"{Ansi.Accent}== {title} =={Ansi.Reset}");
+}
+
+static void WritePhase(
+    string phase,
+    string displayName,
+    int labelWidth,
+    string configuration,
+    string relativePath)
+{
+    Console.WriteLine(
+        $"{Ansi.Accent}==>{Ansi.Reset} " +
+        $"{Ansi.Emphasis}{displayName.PadRight(labelWidth)}{Ansi.Reset} " +
+        $"{Ansi.Dim}[{phase} | {configuration}] {relativePath}{Ansi.Reset}");
+}
+
+static void WriteStatusLine(string statusText, string color, string displayName, int labelWidth, TimeSpan elapsed)
+{
+    Console.WriteLine(
+        $"{color}<=={Ansi.Reset} " +
+        $"{Ansi.Emphasis}{displayName.PadRight(labelWidth)}{Ansi.Reset} " +
+        $"{color}{statusText.PadRight(10)}{Ansi.Reset} " +
+        $"{Ansi.Dim}{FormatDuration(elapsed)}{Ansi.Reset}");
+}
+
+static void WriteSummary(IReadOnlyList<TestRunSummary> runSummaries, string configuration)
+{
+    Console.WriteLine();
+    Console.WriteLine($"{Ansi.Accent}== Test durations ({configuration}) =={Ansi.Reset}");
+
+    if (runSummaries.Count == 0)
+    {
+        Console.WriteLine($"{Ansi.Dim}No test projects were executed.{Ansi.Reset}");
+        return;
+    }
+
+    var orderedRuns = runSummaries
+        .OrderBy(static summary => summary.Elapsed)
+        .ThenBy(static summary => summary.DisplayName, StringComparer.Ordinal)
+        .ToArray();
+
+    var nameWidth = Math.Max("Project".Length, orderedRuns.Max(static summary => summary.DisplayName.Length));
+    var statusWidth = Math.Max("Status".Length, orderedRuns.Max(static summary => GetStatusText(summary.Status).Length));
+    const int durationWidth = 12;
+
+    Console.WriteLine(
+        $"{Ansi.Dim}  {"Project".PadRight(nameWidth)}  {"Status".PadRight(statusWidth)}  {"Duration".PadLeft(durationWidth)}{Ansi.Reset}");
+
+    foreach (var summary in orderedRuns)
+    {
+        Console.WriteLine(
+            $"  {Ansi.Emphasis}{summary.DisplayName.PadRight(nameWidth)}{Ansi.Reset}  " +
+            $"{GetStatusColor(summary.Status)}{GetStatusText(summary.Status).PadRight(statusWidth)}{Ansi.Reset}  " +
+            $"{Ansi.AccentSecondary}{FormatDuration(summary.Elapsed).PadLeft(durationWidth)}{Ansi.Reset}");
+    }
+}
+
+static string GetStatusText(TestRunStatus status)
+{
+    return status switch
+    {
+        TestRunStatus.Passed => "passed",
+        TestRunStatus.Skipped => "skipped",
+        _ => "failed"
+    };
+}
+
+static string GetStatusColor(TestRunStatus status)
+{
+    return status switch
+    {
+        TestRunStatus.Passed => Ansi.Success,
+        TestRunStatus.Skipped => Ansi.Warning,
+        _ => Ansi.Error
+    };
+}
+
+static string FormatDuration(TimeSpan elapsed)
+{
+    return elapsed.ToString(@"hh\:mm\:ss\.fff");
 }
 
 static string GetScriptPath([CallerFilePath] string path = "")
@@ -119,4 +479,48 @@ static bool HasTestSelectionArguments(IEnumerable<string> forwardedArguments)
     }
 
     return false;
+}
+
+static void WriteError(string message)
+{
+    Console.Error.WriteLine($"{Ansi.Error}{message}{Ansi.Reset}");
+}
+
+sealed record CommandLineArguments(
+    string? Configuration,
+    IReadOnlyList<string> ForwardedArguments,
+    bool ShowHelp,
+    string? ErrorMessage);
+
+sealed record TestProject(
+    string ProjectPath,
+    string ProjectName,
+    string DisplayName);
+
+sealed record RunnableTestProject(
+    TestProject Project,
+    string AssemblyPath);
+
+sealed record TestRunSummary(
+    string DisplayName,
+    TestRunStatus Status,
+    TimeSpan Elapsed);
+
+enum TestRunStatus
+{
+    Passed,
+    Skipped,
+    Failed
+}
+
+static class Ansi
+{
+    public const string Reset = "\u001b[0m";
+    public const string Accent = "\u001b[38;2;125;211;252m";
+    public const string AccentSecondary = "\u001b[38;2;167;243;208m";
+    public const string Success = "\u001b[38;2;134;239;172m";
+    public const string Warning = "\u001b[38;2;253;224;71m";
+    public const string Error = "\u001b[38;2;248;113;113m";
+    public const string Dim = "\u001b[38;2;148;163;184m";
+    public const string Emphasis = "\u001b[38;2;241;245;249m";
 }
