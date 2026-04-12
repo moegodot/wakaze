@@ -8,6 +8,9 @@ namespace Kawayi.Wakaze.Analyzer.Tests;
 internal static class SchemaStringConstructorAnalyzerVerifier
 {
     private const string AbstractionsStub = """
+        using System;
+        using System.Collections.Generic;
+
         namespace Kawayi.Wakaze.Abstractions;
 
         public readonly struct SchemaFamily
@@ -20,6 +23,44 @@ internal static class SchemaStringConstructorAnalyzerVerifier
         public readonly struct SchemaId
         {
             public SchemaId(string value)
+            {
+            }
+        }
+
+        [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+        public sealed class RegisterSchemaAttribute : Attribute
+        {
+        }
+
+        public interface ISchemaDefinitionMarker
+        {
+            static abstract SchemaId Schema { get; }
+        }
+
+        public interface ISchemaUriSchemeDefinition
+        {
+            static abstract string UriScheme { get; }
+        }
+
+        public interface ISchemaFamilyDefinition<TScheme>
+            where TScheme : ISchemaUriSchemeDefinition
+        {
+            static abstract SchemaFamily Family { get; }
+        }
+
+        public interface ISchemaDefinition<TFamily, TScheme> : ISchemaDefinitionMarker
+            where TFamily : ISchemaFamilyDefinition<TScheme>
+            where TScheme : ISchemaUriSchemeDefinition
+        {
+            static abstract IReadOnlyList<SchemaId> CompatibleTargets { get; }
+            static abstract IReadOnlyList<SchemaId> ProjectableTargets { get; }
+        }
+        """;
+
+    private const string EntryPointStub = """
+        public static class AnalyzerTestEntryPoint
+        {
+            public static void Main()
             {
             }
         }
@@ -39,9 +80,13 @@ internal static class SchemaStringConstructorAnalyzerVerifier
                 string.Join(Environment.NewLine, compilationDiagnostics.Select(static diagnostic => diagnostic.ToString())));
         }
 
-        var analyzer = new SchemaStringConstructorAnalyzer();
+        DiagnosticAnalyzer[] analyzers =
+        [
+            new SchemaStringConstructorAnalyzer(),
+            new RegisterSchemaMetadataConsistencyAnalyzer()
+        ];
         var diagnostics = await compilation
-            .WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer))
+            .WithAnalyzers(ImmutableArray.CreateRange(analyzers))
             .GetAnalyzerDiagnosticsAsync();
 
         var actualDiagnosticIds = diagnostics
@@ -65,6 +110,7 @@ internal static class SchemaStringConstructorAnalyzerVerifier
         var syntaxTrees = new[]
         {
             CSharpSyntaxTree.ParseText(AbstractionsStub, parseOptions),
+            CSharpSyntaxTree.ParseText(EntryPointStub, parseOptions),
             CSharpSyntaxTree.ParseText(source, parseOptions)
         };
 

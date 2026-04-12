@@ -15,12 +15,12 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
     /// <summary>
     /// Identifies invalid constant strings passed to <c>SchemaFamily(string)</c>.
     /// </summary>
-    public const string SchemaFamilyRuleId = "AB0001";
+    public const string SchemaFamilyRuleId = "KWA0001";
 
     /// <summary>
     /// Identifies invalid constant strings passed to <c>SchemaId(string)</c>.
     /// </summary>
-    public const string SchemaIdRuleId = "AB0002";
+    public const string SchemaIdRuleId = "KWA0002";
 
     private const string Category = "Usage";
     private const string SchemaFamilyMetadataName = "Kawayi.Wakaze.Abstractions.SchemaFamily";
@@ -28,20 +28,20 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
     private const string StringMetadataName = "System.String";
 
     internal static readonly DiagnosticDescriptor InvalidSchemaFamilyString = new(
-        id: SchemaFamilyRuleId,
-        title: "Invalid SchemaFamily constructor string",
-        messageFormat: "The value is not a valid SchemaFamily identifier",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        SchemaFamilyRuleId,
+        "Invalid SchemaFamily constructor string",
+        "The value is not a valid SchemaFamily identifier",
+        Category,
+        DiagnosticSeverity.Warning,
+        true);
 
     internal static readonly DiagnosticDescriptor InvalidSchemaIdString = new(
-        id: SchemaIdRuleId,
-        title: "Invalid SchemaId constructor string",
-        messageFormat: "The value is not a valid SchemaId identifier",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true);
+        SchemaIdRuleId,
+        "Invalid SchemaId constructor string",
+        "The value is not a valid SchemaId identifier",
+        Category,
+        DiagnosticSeverity.Warning,
+        true);
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
@@ -58,10 +58,7 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
             var schemaFamilyType = compilationContext.Compilation.GetTypeByMetadataName(SchemaFamilyMetadataName);
             var schemaIdType = compilationContext.Compilation.GetTypeByMetadataName(SchemaIdMetadataName);
 
-            if (schemaFamilyType is null && schemaIdType is null)
-            {
-                return;
-            }
+            if (schemaFamilyType is null && schemaIdType is null) return;
 
             compilationContext.RegisterOperationAction(
                 operationContext => AnalyzeObjectCreation(operationContext, schemaFamilyType, schemaIdType),
@@ -76,28 +73,16 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
     {
         var operation = (IObjectCreationOperation)context.Operation;
         var constructor = operation.Constructor;
-        if (constructor is null || constructor.Parameters.Length != 1)
-        {
-            return;
-        }
+        if (constructor is null || constructor.Parameters.Length != 1) return;
 
-        if (constructor.Parameters[0].Type?.SpecialType != SpecialType.System_String)
-        {
-            return;
-        }
+        if (constructor.Parameters[0].Type?.SpecialType != SpecialType.System_String) return;
 
-        if (operation.Arguments.Length != 1)
-        {
-            return;
-        }
+        if (operation.Arguments.Length != 1) return;
 
         var targetType = constructor.ContainingType;
         var argument = operation.Arguments[0].Value;
 
-        if (!TryGetConstantString(argument, out var value))
-        {
-            return;
-        }
+        if (!TryGetConstantString(argument, out var value)) return;
 
         if (schemaFamilyType is not null &&
             SymbolEqualityComparer.Default.Equals(targetType, schemaFamilyType) &&
@@ -110,25 +95,18 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
         if (schemaIdType is not null &&
             SymbolEqualityComparer.Default.Equals(targetType, schemaIdType) &&
             !SchemaStringValidator.IsValidSchemaId(value))
-        {
             context.ReportDiagnostic(Diagnostic.Create(InvalidSchemaIdString, argument.Syntax.GetLocation()));
-        }
     }
 
     private static bool TryGetConstantString(IOperation operation, out string? value)
     {
         value = null;
 
-        if (!operation.ConstantValue.HasValue)
-        {
-            return false;
-        }
+        if (!operation.ConstantValue.HasValue) return false;
 
         if (operation.Type?.SpecialType != SpecialType.System_String &&
             operation.Type?.SpecialType != SpecialType.System_Object)
-        {
             return false;
-        }
 
         value = operation.ConstantValue.Value as string;
         return true;
@@ -137,89 +115,93 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
 
 internal static class SchemaStringValidator
 {
+    public static bool TryNormalizeSchemaFamily(string? value, out string normalizedFamily)
+    {
+        normalizedFamily = string.Empty;
+
+        if (value is null) return false;
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !IsValidSchemaFamily(uri)) return false;
+
+        normalizedFamily = uri.AbsoluteUri;
+        return true;
+    }
+
+    public static bool TryGetSchemaIdFamily(string? value, out string family)
+    {
+        family = string.Empty;
+
+        if (value is null) return false;
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || !IsValidSchemaFamily(uri)) return false;
+
+        var pathSegments = GetPathSegments(uri.AbsolutePath);
+        if (pathSegments.Length < 2 || !IsValidVersionSegment(pathSegments[pathSegments.Length - 1])) return false;
+
+        var builder = new UriBuilder(uri)
+        {
+            Query = string.Empty,
+            Fragment = string.Empty,
+            Path = string.Join("/", pathSegments.Take(pathSegments.Length - 1).Select(Uri.EscapeDataString))
+        };
+
+        family = builder.Uri.AbsoluteUri;
+        return true;
+    }
+
+    public static bool TryGetSchemaFamilyScheme(string? value, out string scheme)
+    {
+        scheme = string.Empty;
+
+        if (!TryNormalizeSchemaFamily(value, out var normalizedFamily) ||
+            !Uri.TryCreate(normalizedFamily, UriKind.Absolute, out var uri))
+            return false;
+
+        scheme = uri.Scheme;
+        return true;
+    }
+
     public static bool IsValidSchemaFamily(string? value)
     {
-        if (value is null)
-        {
-            return false;
-        }
+        if (value is null) return false;
 
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return false;
 
         return IsValidSchemaFamily(uri);
     }
 
     public static bool IsValidSchemaId(string? value)
     {
-        if (value is null)
-        {
-            return false;
-        }
+        if (value is null) return false;
 
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
-        {
-            return false;
-        }
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return false;
 
-        if (!IsValidSchemaFamily(uri))
-        {
-            return false;
-        }
+        if (!IsValidSchemaFamily(uri)) return false;
 
         var pathSegments = GetPathSegments(uri.AbsolutePath);
-        if (pathSegments.Length < 2)
-        {
-            return false;
-        }
+        if (pathSegments.Length < 2) return false;
 
         return IsValidVersionSegment(pathSegments[pathSegments.Length - 1]);
     }
 
     private static bool IsValidSchemaFamily(Uri uri)
     {
-        if (!uri.IsAbsoluteUri)
-        {
-            return false;
-        }
+        if (!uri.IsAbsoluteUri) return false;
 
-        if (string.IsNullOrWhiteSpace(uri.Host))
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(uri.Host)) return false;
 
-        if (!string.IsNullOrEmpty(uri.Query))
-        {
-            return false;
-        }
+        if (!string.IsNullOrEmpty(uri.Query)) return false;
 
-        if (!string.IsNullOrEmpty(uri.Fragment))
-        {
-            return false;
-        }
+        if (!string.IsNullOrEmpty(uri.Fragment)) return false;
 
-        if (!uri.IsDefaultPort)
-        {
-            return false;
-        }
+        if (!uri.IsDefaultPort) return false;
 
-        if (!string.IsNullOrEmpty(uri.UserInfo))
-        {
-            return false;
-        }
+        if (!string.IsNullOrEmpty(uri.UserInfo)) return false;
 
         var absolutePath = uri.AbsolutePath;
-        if (string.IsNullOrEmpty(absolutePath) || absolutePath == "/")
-        {
-            return false;
-        }
+        if (string.IsNullOrEmpty(absolutePath) || absolutePath == "/") return false;
 
-        if (absolutePath[absolutePath.Length - 1] == '/')
-        {
-            return false;
-        }
+        if (absolutePath[absolutePath.Length - 1] == '/') return false;
 
         return GetPathSegments(absolutePath).Length > 0;
     }
@@ -236,29 +218,16 @@ internal static class SchemaStringValidator
 
     private static bool IsValidVersionSegment(string value)
     {
-        if (value.Length < 2 || value[0] != 'v')
-        {
-            return false;
-        }
+        if (value.Length < 2 || value[0] != 'v') return false;
 
         var digits = value.Substring(1);
-        if (digits.Length == 0)
-        {
-            return false;
-        }
+        if (digits.Length == 0) return false;
 
         foreach (var digit in digits)
-        {
             if (digit < '0' || digit > '9')
-            {
                 return false;
-            }
-        }
 
-        if (digits.Length > 1 && digits[0] == '0')
-        {
-            return false;
-        }
+        if (digits.Length > 1 && digits[0] == '0') return false;
 
         uint parsed;
         return uint.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out parsed) && parsed != 0;

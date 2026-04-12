@@ -1,3 +1,0 @@
-Db.PostgreSql.Tests要使用TUnit测试夹具和跨平台命令。把cp -R等改成C#代码。一次测试使用一个pg实例。否则不跨平台且测试时间会过长。
-Db.Abstractions要接入EF CORE Abstracttions。
-
