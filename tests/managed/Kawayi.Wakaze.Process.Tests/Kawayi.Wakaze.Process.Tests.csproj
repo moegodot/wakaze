@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-    <ItemGroup>
-        <PackageReference Include="TUnit"/>
-        <ProjectReference Include="../../../src/managed/Kawayi.Wakaze.Process/Kawayi.Wakaze.Process.csproj"/>
-    </ItemGroup>
-
-</Project>

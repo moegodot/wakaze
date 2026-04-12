@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <PackageReference Include="TUnit"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\managed\Kawayi.Wakaze.Generator\Kawayi.Wakaze.Generator.csproj"/>
+        <ProjectReference Include="..\..\src\managed\Kawayi.Wakaze.Abstractions\Kawayi.Wakaze.Abstractions.csproj"/>
+    </ItemGroup>
+
+</Project>

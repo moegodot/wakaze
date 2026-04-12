@@ -1,51 +1,52 @@
 # 工程脚本指南
 
-本文件汇总仓库中 `eng/scripts` 下的工程脚本、当前用途和已验证命令。这里的脚本面向仓库开发流程；运维 / 供应链相关脚本见 `AGENTS.SCRIPTS.md`。
+本文件汇总仓库中 `eng/scripts` 下的工程脚本、当前用途和已验证命令。这里的脚本面向仓库开发流程；运维 / 供应链相关脚本见
+`AGENTS.SCRIPTS.md`。
 
 维护这些脚本或它们的使用契约时，要同步更新本文件。
 
 ## 当前脚本清单
 
 - `eng/scripts/runManagedTests`
-  - 聚合发现并逐个运行 `tests/managed` 下的 `*.Tests.csproj`
-  - 会把 `--` 之后的测试程序参数原样透传给每个 managed 测试项目
-  - 只覆盖 `tests/managed`
-  - 不覆盖 `src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests`
-  - 不覆盖 `src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests`
+    - 聚合发现并逐个运行 `tests/managed` 下的 `*.Tests.csproj`
+    - 会把 `--` 之后的测试程序参数原样透传给每个 managed 测试项目
+    - 只覆盖 `tests/managed`
+    - 不覆盖 `src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests`
+    - 不覆盖 `src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests`
 - `eng/scripts/newManagedProject`
-  - 按仓库约定创建新的 `src/managed` 项目
-  - 可选创建配套 `tests/managed/<ProjectName>.Tests`
-  - 会把新项目接入 `Wakaze.slnx`
+    - 按仓库约定创建新的 `src/managed` 项目
+    - 可选创建配套 `tests/managed/<ProjectName>.Tests`
+    - 会把新项目接入 `Wakaze.slnx`
 - `eng/scripts/updateNugetLockFiles`
-  - 运行 `dotnet restore --force-evaluate`
-  - 用于在依赖变更后刷新 lock file
+    - 运行 `dotnet restore --force-evaluate`
+    - 用于在依赖变更后刷新 lock file
 
 ## 已验证命令
 
 - 运行全部 managed 测试：
-  - `dotnet run --file eng/scripts/runManagedTests --`
+    - `dotnet run --file eng/scripts/runManagedTests --`
 - 按 `Blake3Tests` 筛选 managed 测试：
-  - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
+    - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
 - 查看 `newManagedProject` 的实际帮助：
-  - `dotnet run --file eng/scripts/newManagedProject -- --help`
+    - `dotnet run --file eng/scripts/newManagedProject -- --help`
 - 更新 NuGet lock file：
-  - `sh eng/scripts/updateNugetLockFiles`
+    - `sh eng/scripts/updateNugetLockFiles`
 
 ## `newManagedProject` 当前参数契约
 
 以下参数来自已验证的 `--help` 输出：
 
 - `--name <ProjectName>`
-  - 必填
-  - 创建 `src/managed/<ProjectName>/<ProjectName>.csproj`
+    - 必填
+    - 创建 `src/managed/<ProjectName>/<ProjectName>.csproj`
 - `--kind <library|cli|web-empty>`
-  - 必填
-  - 当前支持 `library`、`cli`、`web-empty`
+    - 必填
+    - 当前支持 `library`、`cli`、`web-empty`
 - `--with-tests <yes|no>`
-  - 必填
-  - 设为 `yes` 时创建 `tests/managed/<ProjectName>.Tests`
+    - 必填
+    - 设为 `yes` 时创建 `tests/managed/<ProjectName>.Tests`
 - `--help`
-  - 显示帮助并退出
+    - 显示帮助并退出
 
 当前脚本还会执行以下规则：
 
@@ -61,3 +62,7 @@
 - 需要新增受仓库约定约束的 managed 项目时，优先用 `eng/scripts/newManagedProject`，不要手工复制目录结构
 - 需要刷新 lock file 时，优先用 `eng/scripts/updateNugetLockFiles`
 - 需要验证脚本行为或维护脚本文档时，可以直接读取 `eng/scripts` 下的实际实现；不要让“不要读脚本”这类习惯阻碍事实核对
+
+## 修改
+
+维护这些脚本或它们的使用契约时，要同步更新本文件。

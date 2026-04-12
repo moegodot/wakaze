@@ -33,17 +33,20 @@ Roslyn 相关自测项目单独位于 `src/managed`：
 以下命令已经在当前工作区执行并验证：
 
 - 查看单个 managed 测试程序帮助：
-  - `dotnet run --project tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj -- --help`
+    - `dotnet run --project tests/managed/Kawayi.Wakaze.Digest.Tests/Kawayi.Wakaze.Digest.Tests.csproj -- --help`
 - 运行全部 `tests/managed`：
-  - `dotnet run --file eng/scripts/runManagedTests --`
+    - `dotnet run --file eng/scripts/runManagedTests --`
 - 运行带树节点筛选的 `tests/managed`：
-  - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
+    - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
 - 查看 PostgreSQL 测试发现结果：
-  - `dotnet run --project tests/managed/Kawayi.Wakaze.Db.PostgreSql.Tests/Kawayi.Wakaze.Db.PostgreSql.Tests.csproj -- --list-tests`
+    -
+    `dotnet run --project tests/managed/Kawayi.Wakaze.Db.PostgreSql.Tests/Kawayi.Wakaze.Db.PostgreSql.Tests.csproj -- --list-tests`
 - 查看 Analyzer 自测发现结果：
-  - `dotnet run --project src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests/Kawayi.Wakaze.Analyzer.Tests.csproj -- --list-tests`
+    -
+    `dotnet run --project src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests/Kawayi.Wakaze.Analyzer.Tests.csproj -- --list-tests`
 - 查看 Generator 自测发现结果：
-  - `dotnet run --project src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests/Kawayi.Wakaze.Generator.Tests.csproj -- --list-tests`
+    -
+    `dotnet run --project src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests/Kawayi.Wakaze.Generator.Tests.csproj -- --list-tests`
 
 ## 当前已验证行为
 
@@ -66,3 +69,7 @@ Roslyn 相关自测项目单独位于 `src/managed`：
 
 - 不要手动编辑 `TestResults/` 下的生成文件
 - 如果测试是否可运行取决于 vendored 产物、平台或脚本前置条件，要把这些前置条件写回文档
+
+## 修改
+
+维护这些测试或它们的使用契约时，要同步更新本文件。

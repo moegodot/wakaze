@@ -16,38 +16,39 @@
 当前源码树中已经有明确实现的区域包括：
 
 - `src/managed/Kawayi.Wakaze.Abstractions`
-  - 提供 schema / typed-object 相关抽象，例如 `SchemaId`、`SchemaFamily`、`ISchemaDefinition*`、`ISchemaProjector`、`ITypedObject`
+    - 提供 schema / typed-object 相关抽象，例如 `SchemaId`、`SchemaFamily`、`ISchemaDefinition*`、`ISchemaProjector`、
+      `ITypedObject`
 - `src/managed/Kawayi.Wakaze.Digest`
-  - 提供 `Blake3` 摘要值类型与值语义
+    - 提供 `Blake3` 摘要值类型与值语义
 - `src/managed/Kawayi.Wakaze.Cas.Abstractions`
-  - 提供 CAS 公共模型与接口，例如 `BlobId`、`BlobRange`、`ReadRequest`、`PutResult`、`BlobStat`、`ICas*`
+    - 提供 CAS 公共模型与接口，例如 `BlobId`、`BlobRange`、`ReadRequest`、`PutResult`、`BlobStat`、`ICas*`
 - `src/managed/Kawayi.Wakaze.Cas.Local`
-  - 提供基于本地文件系统的 CAS 实现
+    - 提供基于本地文件系统的 CAS 实现
 - `src/managed/Kawayi.Wakaze.Db.Abstractions`
-  - 提供数据库描述、连接、健康检查、维护、转储 / 恢复等抽象
+    - 提供数据库描述、连接、健康检查、维护、转储 / 恢复等抽象
 - `src/managed/Kawayi.Wakaze.Db.PostgreSql`
-  - 提供 PostgreSQL provider、数据库对象和 DI 扩展
+    - 提供 PostgreSQL provider、数据库对象和 DI 扩展
 - `src/managed/Kawayi.Wakaze.Entity.Abstractions`
-  - 提供实体、实体引用、修订、读写上下文和实体存储抽象
+    - 提供实体、实体引用、修订、读写上下文和实体存储抽象
 - `src/managed/Kawayi.Wakaze.Entity.Sqlite`
-  - 提供基于 SQLite / EF Core 的实体存储实现
+    - 提供基于 SQLite / EF Core 的实体存储实现
 - `src/managed/Kawayi.Wakaze.Semantics.Abstractions`
-  - 提供语义读取、投影、提交、索引和会话相关抽象
+    - 提供语义读取、投影、提交、索引和会话相关抽象
 - `src/managed/Kawayi.Wakaze.IO`
-  - 提供目录树复制、递归删除、仓库根定位等共享文件系统工具
+    - 提供目录树复制、递归删除、仓库根定位等共享文件系统工具
 - `src/managed/Kawayi.Wakaze.Process`
-  - 提供子进程启动、输出捕获和退出码处理等共享进程工具
+    - 提供子进程启动、输出捕获和退出码处理等共享进程工具
 - `src/managed/Kawayi.Wakaze.Analyzer`
-  - 提供 Roslyn Analyzer、本地 sample 和 analyzer 自测项目
+    - 提供 Roslyn Analyzer、本地 sample 和 analyzer 自测项目
 - `src/managed/Kawayi.Wakaze.Generator`
-  - 提供 Roslyn Source Generator、本地 sample 和 generator 自测项目
+    - 提供 Roslyn Source Generator、本地 sample 和 generator 自测项目
 - `src/managed/Kawayi.Wakaze.Cli`
-  - 当前存在可构建 CLI 入口，但实现仍然非常轻，当前行为仅输出 `Hello, World!`
+    - 当前存在可构建 CLI 入口，但实现仍然非常轻，当前行为仅输出 `Hello, World!`
 
 当前接近占位区的主要是：
 
 - `src/managed/Kawayi.Wakaze.Core`
-  - 目前只有项目骨架和依赖，尚无实际源码成员
+    - 目前只有项目骨架和依赖，尚无实际源码成员
 
 不要再把 `Kawayi.Wakaze.Abstractions` 视为“基本为空”；它已经是当前 schema 抽象的重要组成部分。
 
@@ -138,3 +139,7 @@
 - `AGENTS.TESTING.md`：测试项目、运行方式、筛选规则与当前已验证行为
 
 做架构规划之前可以先读本文件；做脚本、测试或工程操作之前，再按需要读对应的 `AGENTS.*.md`。
+
+## 修改
+
+修改项目结构或项目的使用契约时，要同步更新本文件。

@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-    <ItemGroup>
-        <PackageReference Include="TUnit"/>
-        <ProjectReference Include="../../../src/managed/Kawayi.Wakaze.Abstractions/Kawayi.Wakaze.Abstractions.csproj"/>
-        <ProjectReference Include="../../../src/managed/Kawayi.Wakaze.Db.Abstractions/Kawayi.Wakaze.Db.Abstractions.csproj"/>
-    </ItemGroup>
-
-</Project>

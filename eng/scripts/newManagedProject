@@ -610,7 +610,7 @@ sealed record ProjectLayout(
 
         if (options.WithTests.Value)
         {
-            testDirectory = Path.Combine(repositoryRoot, "tests", "managed", testProjectName);
+            testDirectory = Path.Combine(repositoryRoot, "tests", testProjectName);
             testProjectPath = Path.Combine(testDirectory, $"{testProjectName}.csproj");
             testSolutionPath = ToSolutionPath(repositoryRoot, testProjectPath);
         }

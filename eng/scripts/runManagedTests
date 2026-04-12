@@ -21,7 +21,7 @@ static async Task<int> RunAsync(string[] forwardedArguments)
 
     var scriptPath = GetScriptPath();
     var repositoryRoot = RepositoryRootLocator.FindContainingDirectory(scriptPath, "wakaze.root");
-    var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests", "managed"));
+    var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests"));
 
     var testProjects = Directory
         .EnumerateFiles(managedTestsDirectory, "*.Tests.csproj", SearchOption.AllDirectories)

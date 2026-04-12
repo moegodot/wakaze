@@ -2,7 +2,7 @@
 
     <ItemGroup>
         <PackageReference Include="TUnit"/>
-        <ProjectReference Include="../../../src/managed/Kawayi.Wakaze.IO/Kawayi.Wakaze.IO.csproj"/>
+        <ProjectReference Include="../../src/managed/Kawayi.Wakaze.IO/Kawayi.Wakaze.IO.csproj"/>
     </ItemGroup>
 
 </Project>

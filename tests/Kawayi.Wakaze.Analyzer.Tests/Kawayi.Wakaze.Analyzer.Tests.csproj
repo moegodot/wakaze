@@ -5,7 +5,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Kawayi.Wakaze.Analyzer\Kawayi.Wakaze.Analyzer.csproj"/>
+        <ProjectReference Include="..\..\src\managed\Kawayi.Wakaze.Analyzer\Kawayi.Wakaze.Analyzer.csproj"/>
     </ItemGroup>
 
 </Project>

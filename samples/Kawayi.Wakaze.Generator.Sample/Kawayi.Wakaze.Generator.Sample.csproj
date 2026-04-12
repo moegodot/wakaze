@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\managed\Kawayi.Wakaze.Generator\Kawayi.Wakaze.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\..\src\managed\Kawayi.Wakaze.Abstractions\Kawayi.Wakaze.Abstractions.csproj"/>
+    </ItemGroup>
+
+</Project>
