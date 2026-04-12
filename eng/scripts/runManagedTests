@@ -259,6 +259,8 @@ static IReadOnlyList<string> CreateTestExecutionArguments(
         assemblyPath,
         "--log-level",
         "Warning",
+        "--output",
+        "Detailed",
         "--maximum-parallel-tests",
         Environment.ProcessorCount.ToString()
     };
