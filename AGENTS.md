@@ -39,9 +39,9 @@
 - `src/managed/Kawayi.Wakaze.Process`
     - 提供子进程启动、输出捕获和退出码处理等共享进程工具
 - `src/managed/Kawayi.Wakaze.Analyzer`
-    - 提供 Roslyn Analyzer、本地 sample 和 analyzer 自测项目
+    - 提供 Roslyn Analyzer
 - `src/managed/Kawayi.Wakaze.Generator`
-    - 提供 Roslyn Source Generator、本地 sample 和 generator 自测项目
+    - 提供 Roslyn Source Generator
 - `src/managed/Kawayi.Wakaze.Cli`
     - 当前存在可构建 CLI 入口，但实现仍然非常轻，当前行为仅输出 `Hello, World!`
 
@@ -78,23 +78,6 @@
 - 如果一个概念只对某个 provider / backend 成立，应优先留在对应实现层
 - 只有当某个概念已被多个实现共同需要时，才提升到公共抽象
 - 优先扩展现有有效模块，不要为了假想未来场景新增大而空的顶层项目或注册框架
-
-## 当前测试与工具事实
-
-当前仓库里已经落地并有测试覆盖的区域包括：
-
-- `tests/managed` 下的 8 个 managed 测试项目
-- `src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests`
-- `src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests`
-
-在当前工作区中，以下事实已经被验证：
-
-- `dotnet sln Wakaze.slnx list` 可列出当前 solution 中的项目
-- `dotnet run --project src/managed/Kawayi.Wakaze.Cli/Kawayi.Wakaze.Cli.csproj --` 当前输出 `Hello, World!`
-- `dotnet run --file eng/scripts/runManagedTests --` 可聚合运行 `tests/managed` 下全部 8 个测试项目并通过
-- `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"` 可工作，未命中的测试项目按跳过处理
-- PostgreSQL 集成测试在当前工作区可通过，因为 `vendors/install/postgresql` 已存在且可执行
-- Analyzer / Generator 自测项目存在，但它们不属于 `eng/scripts/runManagedTests` 的聚合范围
 
 ## 语言策略
 

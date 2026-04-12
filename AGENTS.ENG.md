@@ -8,14 +8,11 @@
 ## 当前脚本清单
 
 - `eng/scripts/runManagedTests`
-    - 聚合发现并逐个运行 `tests/managed` 下的 `*.Tests.csproj`
+    - 聚合发现并逐个运行 `tests/` 下的 `*.Tests.csproj`
     - 会把 `--` 之后的测试程序参数原样透传给每个 managed 测试项目
-    - 只覆盖 `tests/managed`
-    - 不覆盖 `src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests`
-    - 不覆盖 `src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests`
 - `eng/scripts/newManagedProject`
     - 按仓库约定创建新的 `src/managed` 项目
-    - 可选创建配套 `tests/managed/<ProjectName>.Tests`
+    - 可选创建配套 `tests/<ProjectName>.Tests`
     - 会把新项目接入 `Wakaze.slnx`
 - `eng/scripts/updateNugetLockFiles`
     - 运行 `dotnet restore --force-evaluate`
@@ -44,7 +41,7 @@
     - 当前支持 `library`、`cli`、`web-empty`
 - `--with-tests <yes|no>`
     - 必填
-    - 设为 `yes` 时创建 `tests/managed/<ProjectName>.Tests`
+    - 设为 `yes` 时创建 `tests/<ProjectName>.Tests`
 - `--help`
     - 显示帮助并退出
 
