@@ -1,9 +1,11 @@
+using Kawayi.Wakaze.Abstractions;
+
 namespace Kawayi.Wakaze.Db.Abstractions;
 
 /// <summary>
 /// Describes a database resource that should be provisioned by a provider-specific implementation.
 /// </summary>
-/// <param name="ProviderId">The provider to provision with.</param>
+/// <param name="ProviderId">The exact <c>database://</c> schema identifier of the provider to provision with.</param>
 /// <param name="Location">
 /// The target location for the new resource. Opaque locations carry a versioned provider-specific document.
 /// </param>
@@ -13,7 +15,7 @@ namespace Kawayi.Wakaze.Db.Abstractions;
 /// </param>
 /// <param name="Properties">Optional provider-specific provisioning properties.</param>
 public sealed record DatabaseProvisioningRequest(
-    DatabaseProviderId ProviderId,
+    SchemaId<DatabaseScheme> ProviderId,
     DatabaseLocation Location,
     string? DisplayName = null,
     DatabaseConnectionRequest AdministrativeConnection = default,

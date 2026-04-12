@@ -34,6 +34,10 @@ project_doc_fallback_filenames = [
 
 project_doc_max_bytes = 65536
 
+[shell_environment_policy]
+inherit = "core"
+include_only = ["PATH", "HOME", "TUNIT_DISABLE_LOGO","TUNIT_ENABLE_IDE_STREAMING","TUNIT_DISCOVERY_DIAGNOSTICS","TUNIT_EXECUTION_MODE"]
+
 [sandbox_workspace_write]
 network_access = true
 exclude_slash_tmp = false

@@ -1,19 +1,63 @@
 # 工程脚本指南
 
-本文件汇总仓库中 `eng/scripts` 目录下的工程脚本与相关辅助文件说明。并优先使用仓库内脚本而不是手写命令。
+本文件汇总仓库中 `eng/scripts` 下的工程脚本、当前用途和已验证命令。这里的脚本面向仓库开发流程；运维 / 供应链相关脚本见 `AGENTS.SCRIPTS.md`。
 
-- `runManagedTests`：聚合发现并逐个运行 `tests/managed` 下的 `*.Tests.csproj`，并将筛选参数透传给各测试项目。
-    - 运行全部 managed 测试：`dotnet run --file eng/scripts/runManagedTests --`
-    - 按筛选条件运行 managed 测试：
-      `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
-- `runAllTests`：先运行 `tests/native/postgresql/runAllTests`，再运行 `eng/scripts/runManagedTests`。传入参数仅透传给 managed 测试聚合器。
-    - 运行全部 native + managed 测试：`dotnet run --file eng/scripts/runAllTests --`
-    - 运行全部 native 测试并按条件筛选 managed 测试：
-      `dotnet run --file eng/scripts/runAllTests -- --treenode-filter "/*/*/Blake3Tests/*"`
-- `newManagedProject`：按仓库约定创建新的 `src/managed` 项目，可选配套 `tests/managed` 测试项目，并自动接入`Wakaze.slnx`。
-    - 创建新的 managed 项目：
-      `dotnet run --file eng/scripts/newManagedProject -- --name Kawayi.Wakaze.Example --kind library --with-tests yes`
-- `updateNugetLockFiles`: 在添加，删除，修改依赖之后更新nuget lock file，这个脚本可以不经用户允许就调用。
-    - 更新 NuGet lock files：`sh eng/scripts/updateNugetLockFiles`
+维护这些脚本或它们的使用契约时，要同步更新本文件。
 
-不要直接读入`eng/scripts`下的文件，避免context浪费。
+## 当前脚本清单
+
+- `eng/scripts/runManagedTests`
+  - 聚合发现并逐个运行 `tests/managed` 下的 `*.Tests.csproj`
+  - 会把 `--` 之后的测试程序参数原样透传给每个 managed 测试项目
+  - 只覆盖 `tests/managed`
+  - 不覆盖 `src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests`
+  - 不覆盖 `src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests`
+- `eng/scripts/newManagedProject`
+  - 按仓库约定创建新的 `src/managed` 项目
+  - 可选创建配套 `tests/managed/<ProjectName>.Tests`
+  - 会把新项目接入 `Wakaze.slnx`
+- `eng/scripts/updateNugetLockFiles`
+  - 运行 `dotnet restore --force-evaluate`
+  - 用于在依赖变更后刷新 lock file
+
+## 已验证命令
+
+- 运行全部 managed 测试：
+  - `dotnet run --file eng/scripts/runManagedTests --`
+- 按 `Blake3Tests` 筛选 managed 测试：
+  - `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"`
+- 查看 `newManagedProject` 的实际帮助：
+  - `dotnet run --file eng/scripts/newManagedProject -- --help`
+- 更新 NuGet lock file：
+  - `sh eng/scripts/updateNugetLockFiles`
+
+## `newManagedProject` 当前参数契约
+
+以下参数来自已验证的 `--help` 输出：
+
+- `--name <ProjectName>`
+  - 必填
+  - 创建 `src/managed/<ProjectName>/<ProjectName>.csproj`
+- `--kind <library|cli|web-empty>`
+  - 必填
+  - 当前支持 `library`、`cli`、`web-empty`
+- `--with-tests <yes|no>`
+  - 必填
+  - 设为 `yes` 时创建 `tests/managed/<ProjectName>.Tests`
+- `--help`
+  - 显示帮助并退出
+
+当前脚本还会执行以下规则：
+
+- 所有非 `--help` 选项都是必填
+- 不接受位置参数
+- `cli` 项目名必须以 `.Cli` 结尾
+- 源项目名不能以 `.Tests` 结尾
+- 若源项目、测试项目或 solution 项已经存在，脚本会失败
+
+## 使用建议
+
+- 需要运行 managed 测试时，优先使用 `eng/scripts/runManagedTests`
+- 需要新增受仓库约定约束的 managed 项目时，优先用 `eng/scripts/newManagedProject`，不要手工复制目录结构
+- 需要刷新 lock file 时，优先用 `eng/scripts/updateNugetLockFiles`
+- 需要验证脚本行为或维护脚本文档时，可以直接读取 `eng/scripts` 下的实际实现；不要让“不要读脚本”这类习惯阻碍事实核对

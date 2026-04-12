@@ -2,9 +2,12 @@
 
 #:package Serilog
 #:package Serilog.Sinks.Console
+#:project ../../src/managed/Kawayi.Wakaze.IO/Kawayi.Wakaze.IO.csproj
+#:project ../../src/managed/Kawayi.Wakaze.Process/Kawayi.Wakaze.Process.csproj
 
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Kawayi.Wakaze.IO;
+using Kawayi.Wakaze.Process;
 using Serilog;
 
 return await RunAsync(args);
@@ -17,7 +20,7 @@ static async Task<int> RunAsync(string[] forwardedArguments)
     Log.Logger = log;
 
     var scriptPath = GetScriptPath();
-    var repositoryRoot = GetRepositoryRoot(scriptPath);
+    var repositoryRoot = RepositoryRootLocator.FindContainingDirectory(scriptPath, "wakaze.root");
     var managedTestsDirectory = Path.GetFullPath(Path.Combine(repositoryRoot, "tests", "managed"));
 
     var testProjects = Directory
@@ -39,29 +42,28 @@ static async Task<int> RunAsync(string[] forwardedArguments)
         var displayPath = Path.GetRelativePath(repositoryRoot, testProject);
         Log.Information($"==> Running {displayPath}");
 
-        using var process = CreateProcess(testProject, repositoryRoot, forwardedArguments);
-        if (!process.Start())
-        {
-            Log.Error($"Failed to start test project '{displayPath}'.");
-            failedProjects.Add(displayPath);
-            continue;
-        }
+        var result = await ProcessCommandRunner.RunAsync(
+            new ProcessCommandRequest(
+                "dotnet",
+                CreateArguments(testProject, forwardedArguments),
+                repositoryRoot,
+                CaptureOutput: false,
+                EnvironmentVariables: null,
+                ThrowOnNonZeroExit: false));
 
-        await process.WaitForExitAsync();
-
-        if (process.ExitCode == 0)
+        if (result.ExitCode == 0)
         {
             Log.Information($"<== Passed {displayPath}");
             continue;
         }
 
-        if (hasTestSelectionArguments && process.ExitCode == 8)
+        if (hasTestSelectionArguments && result.ExitCode == 8)
         {
             Log.Information($"<== Skipped {displayPath} (no matching tests)");
             continue;
         }
 
-        Log.Error($"<== Failed {displayPath} (exit code {process.ExitCode})");
+        Log.Error($"<== Failed {displayPath} (exit code {result.ExitCode})");
         failedProjects.Add(displayPath);
     }
 
@@ -77,56 +79,27 @@ static async Task<int> RunAsync(string[] forwardedArguments)
     return 1;
 }
 
-static Process CreateProcess(string testProject, string workingDirectory, IEnumerable<string> forwardedArguments)
+static IReadOnlyList<string> CreateArguments(string testProject, IEnumerable<string> forwardedArguments)
 {
-    var startInfo = new ProcessStartInfo("dotnet")
+    var arguments = new List<string>
     {
-        WorkingDirectory = workingDirectory,
-        UseShellExecute = false,
-        CreateNoWindow = true,
+        "run",
+        "--project",
+        testProject,
+        "--"
     };
-
-    startInfo.ArgumentList.Add("run");
-    startInfo.ArgumentList.Add("--project");
-    startInfo.ArgumentList.Add(testProject);
-    startInfo.ArgumentList.Add("--");
 
     foreach (var argument in forwardedArguments)
     {
-        startInfo.ArgumentList.Add(argument);
+        arguments.Add(argument);
     }
 
-    return new Process
-    {
-        StartInfo = startInfo,
-    };
+    return arguments;
 }
 
 static string GetScriptPath([CallerFilePath] string path = "")
 {
     return path;
-}
-
-static string GetRepositoryRoot(string scriptPath)
-{
-    var currentDirectory = Path.GetDirectoryName(scriptPath)
-        ?? throw new InvalidOperationException("Unable to resolve the script directory.");
-
-    while (true)
-    {
-        if (File.Exists(Path.Combine(currentDirectory, "wakaze.root")))
-        {
-            return currentDirectory;
-        }
-
-        var parentDirectory = Path.GetDirectoryName(currentDirectory);
-        if (parentDirectory is null)
-        {
-            throw new InvalidOperationException($"Unable to locate 'wakaze.root' starting from '{scriptPath}'.");
-        }
-
-        currentDirectory = parentDirectory;
-    }
 }
 
 static bool HasTestSelectionArguments(IEnumerable<string> forwardedArguments)

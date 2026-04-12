@@ -1,3 +1,5 @@
+using Kawayi.Wakaze.Abstractions;
+
 namespace Kawayi.Wakaze.Db.Abstractions;
 
 /// <summary>
@@ -6,14 +8,14 @@ namespace Kawayi.Wakaze.Db.Abstractions;
 public interface IDatabaseProvider : IDatabaseResolver, IDatabaseProvisioner
 {
     /// <summary>
-    /// Gets the stable provider identifier.
+    /// Gets the stable provider identifier as an exact <c>database://</c> schema identifier.
     /// </summary>
-    DatabaseProviderId ProviderId { get; }
+    SchemaId<DatabaseScheme> ProviderId { get; }
 
     /// <summary>
-    /// Gets the engine family supported by the provider.
+    /// Gets the supported engine as an exact <c>database://</c> schema identifier.
     /// </summary>
-    DatabaseEngine Engine { get; }
+    SchemaId<DatabaseScheme> Engine { get; }
 
     /// <summary>
     /// Gets a human-readable provider display name.

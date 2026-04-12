@@ -1,73 +1,99 @@
 # AGENTS.md
 
-本文件面向在本仓库中工作的编码代理与贡献者。它参考同类仓库协作文档的结构，但内容以当前 `wakaze` 仓库的实际实现为准。
+本文件面向在 `wakaze` 仓库中工作的编码代理与贡献者。仓库中的源码树、项目文件、脚本和已验证命令是当前实现真相来源；README、贡献文档和其他说明性文档只作为补充，不应覆盖源码事实。
 
 ## 项目背景
 
 - 产品名：`Wakaze`
 - 仓库类型：C# / .NET 10 多项目仓库
-- 当前重点：内容寻址存储（CAS）抽象、本地文件系统 CAS 实现、BLAKE3 摘要值类型
-- 当前仓库阶段：底层基础库阶段，范围较小，尚未发展出更高层的完整应用框架
+- 当前仓库同时包含运行时库、测试项目、Roslyn Analyzer / Source Generator、工程脚本和运维脚本
+- 当前尚未形成完整终端产品；现阶段主要是底层模型、存储、数据库、实体、语义和工具链基础设施
 
-将当前源码树视为实现真相来源，不要把占位文档当作现有能力说明。
+不要假设仓库已经存在尚未落地的服务层、网络层、插件系统或完整 CLI 工作流。遇到能力边界时，以当前项目与测试为准。
 
-## 当前仓库状态
+## 当前实现范围
 
-当前仓库已经落地的核心内容主要集中在以下几个模块：
+当前源码树中已经有明确实现的区域包括：
 
-- `src/managed/Kawayi.Wakaze.Digest` 提供 `Blake3` 摘要值类型与其值语义
-- `src/managed/Kawayi.Wakaze.Cas.Abstractions` 提供 CAS 相关公共契约，包括 `BlobId`、`BlobRange`、`ReadRequest`、
-  `PutResult`、`BlobStat` 以及 `ICas*` 接口
-- `src/managed/Kawayi.Wakaze.Cas.Local` 提供基于本地文件系统的 CAS 实现，包括 blob 路径策略、临时文件写入与范围读取支持
-- `tests/managed/Kawayi.Wakaze.Digest.Tests` 覆盖摘要值类型的基本行为
-- `tests/managed/Kawayi.Wakaze.Cas.Local.Tests` 覆盖本地 CAS 的写入、去重、并发写入、范围读取与缺失对象语义
+- `src/managed/Kawayi.Wakaze.Abstractions`
+  - 提供 schema / typed-object 相关抽象，例如 `SchemaId`、`SchemaFamily`、`ISchemaDefinition*`、`ISchemaProjector`、`ITypedObject`
+- `src/managed/Kawayi.Wakaze.Digest`
+  - 提供 `Blake3` 摘要值类型与值语义
+- `src/managed/Kawayi.Wakaze.Cas.Abstractions`
+  - 提供 CAS 公共模型与接口，例如 `BlobId`、`BlobRange`、`ReadRequest`、`PutResult`、`BlobStat`、`ICas*`
+- `src/managed/Kawayi.Wakaze.Cas.Local`
+  - 提供基于本地文件系统的 CAS 实现
+- `src/managed/Kawayi.Wakaze.Db.Abstractions`
+  - 提供数据库描述、连接、健康检查、维护、转储 / 恢复等抽象
+- `src/managed/Kawayi.Wakaze.Db.PostgreSql`
+  - 提供 PostgreSQL provider、数据库对象和 DI 扩展
+- `src/managed/Kawayi.Wakaze.Entity.Abstractions`
+  - 提供实体、实体引用、修订、读写上下文和实体存储抽象
+- `src/managed/Kawayi.Wakaze.Entity.Sqlite`
+  - 提供基于 SQLite / EF Core 的实体存储实现
+- `src/managed/Kawayi.Wakaze.Semantics.Abstractions`
+  - 提供语义读取、投影、提交、索引和会话相关抽象
+- `src/managed/Kawayi.Wakaze.IO`
+  - 提供目录树复制、递归删除、仓库根定位等共享文件系统工具
+- `src/managed/Kawayi.Wakaze.Process`
+  - 提供子进程启动、输出捕获和退出码处理等共享进程工具
+- `src/managed/Kawayi.Wakaze.Analyzer`
+  - 提供 Roslyn Analyzer、本地 sample 和 analyzer 自测项目
+- `src/managed/Kawayi.Wakaze.Generator`
+  - 提供 Roslyn Source Generator、本地 sample 和 generator 自测项目
+- `src/managed/Kawayi.Wakaze.Cli`
+  - 当前存在可构建 CLI 入口，但实现仍然非常轻，当前行为仅输出 `Hello, World!`
 
-当前也存在尚未形成有效实现的区域：
+当前接近占位区的主要是：
 
-- `src/managed/Kawayi.Wakaze.Abstractions` 目前基本为空，可视为占位区
-- `src/managed/Kawayi.Wakaze.Core` 目前基本为空，可视为占位区
-- `README.md` 与 `CONTRIBUTING.md` 当前仍主要是占位内容，不应被视为实现真相
+- `src/managed/Kawayi.Wakaze.Core`
+  - 目前只有项目骨架和依赖，尚无实际源码成员
 
-不要凭空假设尚未落地的上层框架、服务层、网络层、插件层或工具链基础设施已经存在。
+不要再把 `Kawayi.Wakaze.Abstractions` 视为“基本为空”；它已经是当前 schema 抽象的重要组成部分。
 
-## 架构方向
+## 架构边界
 
 除非任务明确要求调整边界，否则遵循以下职责划分：
 
-- 摘要值类型与其通用值语义属于 `Kawayi.Wakaze.Digest`
+- Schema 标识、兼容性、注册、投影和 typed-object 模型属于 `Kawayi.Wakaze.Abstractions`
+- 摘要值类型与其底层值语义属于 `Kawayi.Wakaze.Digest`
 - CAS 公共模型与读取 / 写入 / 查询契约属于 `Kawayi.Wakaze.Cas.Abstractions`
-- 本地文件系统存储细节属于 `Kawayi.Wakaze.Cas.Local`
-- 未落地的新模块只能被视为未来空间，不能在当前任务中被当成稳定依赖
+- 本地文件系统 blob 布局、临时文件提交、范围读取等细节属于 `Kawayi.Wakaze.Cas.Local`
+- 数据库无关的 provider / connection / dump / restore / maintenance 抽象属于 `Kawayi.Wakaze.Db.Abstractions`
+- PostgreSQL 特定连接串、工具调用和依赖注入扩展属于 `Kawayi.Wakaze.Db.PostgreSql`
+- 实体模型与实体存储抽象属于 `Kawayi.Wakaze.Entity.Abstractions`
+- SQLite / EF Core 持久化细节属于 `Kawayi.Wakaze.Entity.Sqlite`
+- 语义层通用抽象属于 `Kawayi.Wakaze.Semantics.Abstractions`
+- 与具体领域无关的文件系统工具属于 `Kawayi.Wakaze.IO`
+- 与具体领域无关的进程执行工具属于 `Kawayi.Wakaze.Process`
+- Roslyn 诊断规则属于 `Kawayi.Wakaze.Analyzer`
+- Roslyn 代码生成逻辑属于 `Kawayi.Wakaze.Generator`
+- 当前 CLI 行为仍然很轻，不要把尚未实现的命令面或工作流写成既有能力
 
 更具体地说：
 
-- 不要把文件系统实现细节泄漏到抽象层
-- 不要把本地路径布局策略硬编码进公共接口契约
-- 如果某个类型只服务于本地 CAS 实现，它通常应留在 `Kawayi.Wakaze.Cas.Local`
-- 如果某个概念对所有 CAS 实现都成立，它更可能属于 `Kawayi.Wakaze.Cas.Abstractions`
+- 不要把本地文件布局、临时路径或具体数据库工具细节泄漏到抽象层
+- 不要把 PostgreSQL、SQLite 或测试编排逻辑下沉到 `Kawayi.Wakaze.IO` 或 `Kawayi.Wakaze.Process`
+- 如果一个概念只对某个 provider / backend 成立，应优先留在对应实现层
+- 只有当某个概念已被多个实现共同需要时，才提升到公共抽象
+- 优先扩展现有有效模块，不要为了假想未来场景新增大而空的顶层项目或注册框架
 
-## Digest 指南
+## 当前测试与工具事实
 
-`Kawayi.Wakaze.Digest` 目前承担的是值类型建模责任，而不是完整的哈希工作流框架。
+当前仓库里已经落地并有测试覆盖的区域包括：
 
-- 保持 `Blake3` 作为紧凑、明确的摘要值类型
-- 优先维护值相等性、哈希码、Span 转换等底层语义的一致性
-- 没有明确需求时，不要在该模块中扩展与当前仓库无关的大型摘要工具集
+- `tests/managed` 下的 8 个 managed 测试项目
+- `src/managed/Kawayi.Wakaze.Analyzer/Kawayi.Wakaze.Analyzer.Tests`
+- `src/managed/Kawayi.Wakaze.Generator/Kawayi.Wakaze.Generator.Tests`
 
-## CAS 指南
+在当前工作区中，以下事实已经被验证：
 
-当前仓库的 CAS 设计已经形成了清晰的“抽象 + 本地实现”边界。
-
-- 公共调用方应优先面向 `ICas`、`ICasReader`、`ICasWriter`、`ICasQuerier`
-- `BlobId`、`BlobRange`、`ReadRequest`、`PutResult`、`BlobStat` 等模型应保持小而清晰
-- 本地实现中的文件布局、临时文件提交、去重策略与范围读取细节应保留在 `Kawayi.Wakaze.Cas.Local`
-- 没有明确调用方需求时，不要过早引入额外的存储后端抽象层或注册框架
-
-如果任务涉及新增 CAS 实现：
-
-- 先复用现有抽象契约
-- 仅在现有契约确实不足时才扩展公共接口
-- 新增公共 API 时保持最小、显式、可测试
+- `dotnet sln Wakaze.slnx list` 可列出当前 solution 中的项目
+- `dotnet run --project src/managed/Kawayi.Wakaze.Cli/Kawayi.Wakaze.Cli.csproj --` 当前输出 `Hello, World!`
+- `dotnet run --file eng/scripts/runManagedTests --` 可聚合运行 `tests/managed` 下全部 8 个测试项目并通过
+- `dotnet run --file eng/scripts/runManagedTests -- --treenode-filter "/*/*/Blake3Tests/*"` 可工作，未命中的测试项目按跳过处理
+- PostgreSQL 集成测试在当前工作区可通过，因为 `vendors/install/postgresql` 已存在且可执行
+- Analyzer / Generator 自测项目存在，但它们不属于 `eng/scripts/runManagedTests` 的聚合范围
 
 ## 语言策略
 
@@ -77,7 +103,7 @@
 - XML 文档注释使用英文
 - XML 中的异常说明、参数说明、返回值说明使用英文
 - 测试中的注释与测试相关 XML 文档注释使用英文
-- 除 `README.md` 外，仓库中的独立文档默认使用中文，例如 `AGENTS.md`、未来的 `cas.md`、`CONTRIBUTING.md`
+- 除 `README.md` 外，仓库中的独立文档默认使用中文，例如 `AGENTS.md`、`AGENTS.ENG.md`、`AGENTS.TESTING.md`
 - `README.md` 必须保持英文
 
 补充约束：
@@ -88,25 +114,27 @@
 
 ## 实务编辑规则
 
-- 优先在现有有效模块内扩展，而不是轻易新增顶层项目
-- 保持公共 API 小而显式
-- 优先做小而连贯的改动，不要为了假想未来场景引入大而空的框架
-- 修改源码时，若相关成员已经有文档风格约束，应同步补齐英文 XML 文档
-- 对于 `Kawayi.Wakaze.Abstractions` 与 `Kawayi.Wakaze.Core` 这类当前占位区域，优先保持克制，避免凭空堆砌概念
+- 优先做小而连贯的改动
+- 公共 API 保持小而显式
+- 先复用现有抽象和共享工具，再考虑新增层次
+- 修改行为语义时，同步补齐最接近模块的测试
+- 遇到目录树复制、递归删除、仓库根定位、通用进程启动等重复逻辑时，优先复用 `Kawayi.Wakaze.IO` 和 `Kawayi.Wakaze.Process`
+- 做文档修订时，先验证一句话和一个命令是否仍然与当前仓库一致，再写入文档
+- 当“当前已证明需要的清晰实现”和“遥远未来的预留设计”冲突时，优先记录和实现当前已被证明需要的方案
 
-## 当出现权衡时
+## 文档同步要求
 
-当“当前最小可用实现”与“面向遥远未来的预留设计”之间出现张力时，优先选择面向遥远未来的预留设计。
-
-当“本地实现细节”与“抽象层公共语义”之间出现张力时，优先把细节留在实现层，把公共边界保持干净。
+- 改动项目结构、模块边界、公共职责划分或仓库架构说明时，要同步更新 `AGENTS.md`
+- 改动测试项目、测试入口、测试筛选方式或测试前置条件时，要根据情况更新 `AGENTS.TESTING.md`
+- 改动 `eng/scripts` 或其使用契约时，要根据情况更新 `AGENTS.ENG.md`
+- 改动 `scripts` 或其使用契约时，要根据情况更新 `AGENTS.SCRIPTS.md`
+- 改动脚本编写约定时，要根据情况更新 `AGENTS.SCRIPT.WRITING.md`
 
 ## 其他有用的文件
 
-`AGENTS.ENG.md`中枚举出了工程脚本和使用说明。
-`AGENTS.SCRIPTS.md`中枚举出了运维脚本和使用说明。在工程脚本无法满足需求的时候再读取这个文件。
-在功能重合的时候，优先运行脚本而非自己运行命令。
+- `AGENTS.ENG.md`：`eng/scripts` 工程脚本与使用说明
+- `AGENTS.SCRIPTS.md`：`scripts` 运维 / 供应链脚本与当前已验证的只读检查方式
+- `AGENTS.SCRIPT.WRITING.md`：脚本编写约定
+- `AGENTS.TESTING.md`：测试项目、运行方式、筛选规则与当前已验证行为
 
-`AGENTS.SCRIPTS.WRITING.md`中有脚本编写指南。在需要在`scripts`和`eng/scripts`下编写脚本的时候使用。
-`AGENTS.TESTING.md`中有测试相关约定、命令模板与筛选规则。
-
-做架构规划而非修改项目的时候无需读取上述文件。
+做架构规划之前可以先读本文件；做脚本、测试或工程操作之前，再按需要读对应的 `AGENTS.*.md`。

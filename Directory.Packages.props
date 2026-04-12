@@ -28,6 +28,7 @@
         <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftKitVersion)"/>
         <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="$(MicrosoftKitVersion)"/>
         <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftKitVersion)"/>
+        <PackageVersion Include="Npgsql" Version="9.0.4"/>
         <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="$(CodeAnalysisPkgVersion)"/>
         <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="$(CodeAnalysisPkgVersion)"/>
         <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(CodeAnalysisPkgVersion)"/>

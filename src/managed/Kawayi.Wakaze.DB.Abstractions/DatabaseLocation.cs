@@ -35,23 +35,17 @@ public sealed record DatabaseOpaqueLocation : DatabaseLocation
     /// <summary>
     /// Initializes a new instance of the <see cref="DatabaseOpaqueLocation"/> class.
     /// </summary>
-    /// <param name="schema">The exact schema of the opaque location document.</param>
-    /// <param name="format">The payload format identifier.</param>
+    /// <param name="schema">The exact <c>database://</c> schema identifier of the opaque location document.</param>
+    /// <param name="format">The exact <c>database://</c> schema identifier of the serialized payload format.</param>
     /// <param name="payload">The serialized opaque location payload.</param>
     /// <param name="description">An optional human-readable description of the location.</param>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="format"/> is empty or whitespace.</exception>
     public DatabaseOpaqueLocation(
-        SchemaId schema,
-        string format,
+        SchemaId<DatabaseScheme> schema,
+        SchemaId<DatabaseScheme> format,
         ReadOnlyMemory<byte> payload,
         string? description = null)
         : base(DatabaseLocationKind.Opaque)
     {
-        if (string.IsNullOrWhiteSpace(format))
-        {
-            throw new ArgumentException("The opaque location format cannot be empty.", nameof(format));
-        }
-
         Schema = schema;
         Format = format;
         Payload = payload;
@@ -59,14 +53,14 @@ public sealed record DatabaseOpaqueLocation : DatabaseLocation
     }
 
     /// <summary>
-    /// Gets the exact schema of the opaque location document.
+    /// Gets the exact <c>database://</c> schema identifier of the opaque location document.
     /// </summary>
-    public SchemaId Schema { get; }
+    public SchemaId<DatabaseScheme> Schema { get; }
 
     /// <summary>
-    /// Gets the payload format identifier.
+    /// Gets the exact <c>database://</c> schema identifier of the serialized payload format.
     /// </summary>
-    public string Format { get; }
+    public SchemaId<DatabaseScheme> Format { get; }
 
     /// <summary>
     /// Gets the serialized opaque location payload.
