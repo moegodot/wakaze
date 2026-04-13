@@ -126,24 +126,8 @@ public class SchemaFamilyStringConstructorAnalyzerTests
             source,
             new Dictionary<string, string>
             {
-                ["EnableKWA0001"] = "false"
+                ["WakazeDisabledAnas"] = "KWA0001"
             },
             SchemaStringConstructorAnalyzer.SchemaIdRuleId);
-    }
-
-    [Test]
-    public async Task EnableKWA0001_Invalid_Value_Does_Not_Suppress_KWA0001()
-    {
-        var source = """
-                     var family = new SchemaFamily("semantic://wakaze.dev");
-                     """;
-
-        await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(
-            source,
-            new Dictionary<string, string>
-            {
-                ["EnableKWA0001"] = "disabled"
-            },
-            SchemaStringConstructorAnalyzer.SchemaFamilyRuleId);
     }
 }

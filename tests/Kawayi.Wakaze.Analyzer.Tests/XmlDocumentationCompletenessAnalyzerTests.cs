@@ -232,29 +232,8 @@ public class XmlDocumentationCompletenessAnalyzerTests
             source,
             new Dictionary<string, string>
             {
-                ["EnableKWA0005"] = "false"
+                ["WakazeDisabledAnas"] = "KWA0005"
             },
             XmlDocumentationCompletenessAnalyzer.MissingParamRuleId);
-    }
-
-    [Test]
-    public async Task EnableKWA0005_False_Is_Case_Insensitive()
-    {
-        var source = """
-                     /// <summary>Demo type.</summary>
-                     public sealed class DemoType
-                     {
-                         public void Run()
-                         {
-                         }
-                     }
-                     """;
-
-        await SchemaStringConstructorAnalyzerVerifier.VerifyXmlDocumentationAsync(
-            source,
-            new Dictionary<string, string>
-            {
-                ["EnableKWA0005"] = "FALSE"
-            });
     }
 }

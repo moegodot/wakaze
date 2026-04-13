@@ -32,16 +32,7 @@
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <RestoreLockedMode>true</RestoreLockedMode>
         <WarningLevel>4</WarningLevel>
-        <EnableKWA0001>true</EnableKWA0001>
-        <EnableKWA0002>true</EnableKWA0002>
-        <EnableKWA0003>true</EnableKWA0003>
-        <EnableKWA0004>true</EnableKWA0004>
-        <EnableKWA0005>false</EnableKWA0005>
-        <EnableKWA0006>false</EnableKWA0006>
-        <EnableKWA0007>false</EnableKWA0007>
-        <EnableKWA0008>false</EnableKWA0008>
-        <EnableKWA0009>false</EnableKWA0009>
-        <EnableKWA0010>false</EnableKWA0010>
+        <WakazeDisabledAnas>KWA0005;WA0006;KWA0007;KWA0008;KWA0009;KWA0010</WakazeDisabledAnas>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' != 'true'">
@@ -66,16 +57,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <CompilerVisibleProperty Include="EnableKWA0001"/>
-        <CompilerVisibleProperty Include="EnableKWA0002"/>
-        <CompilerVisibleProperty Include="EnableKWA0003"/>
-        <CompilerVisibleProperty Include="EnableKWA0004"/>
-        <CompilerVisibleProperty Include="EnableKWA0005"/>
-        <CompilerVisibleProperty Include="EnableKWA0006"/>
-        <CompilerVisibleProperty Include="EnableKWA0007"/>
-        <CompilerVisibleProperty Include="EnableKWA0008"/>
-        <CompilerVisibleProperty Include="EnableKWA0009"/>
-        <CompilerVisibleProperty Include="EnableKWA0010"/>
+        <CompilerVisibleProperty Include="WakazeDisabledAnas"/>
+        
         <None Include="$(MSBuildThisFileDirectory)/images/icon.png" Pack="true" PackagePath="\"/>
         <None Include="$(MSBuildThisFileDirectory)/README.md" Pack="true" PackagePath="\"/>
 

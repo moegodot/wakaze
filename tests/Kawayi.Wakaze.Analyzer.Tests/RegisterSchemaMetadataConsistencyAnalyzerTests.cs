@@ -318,7 +318,7 @@ public class RegisterSchemaMetadataConsistencyAnalyzerTests
             source,
             new Dictionary<string, string>
             {
-                ["EnableKWA0003"] = "false"
+                ["WakazeDisabledAnas"] = "KWA0003"
             },
             RegisterSchemaMetadataConsistencyAnalyzer.FamilySchemeConsistencyRuleId);
     }

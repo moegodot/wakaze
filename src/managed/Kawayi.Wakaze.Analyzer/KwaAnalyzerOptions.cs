@@ -30,19 +30,14 @@ internal sealed class KwaAnalyzerOptions
     {
         var builder = ImmutableDictionary.CreateBuilder<string, bool>(StringComparer.Ordinal);
 
-        foreach (var ruleId in RuleIds)
-        {
-            var key = "build_property." + GetPropertyName(ruleId);
+        foreach (var ruleId in RuleIds) builder[ruleId] = true;
 
-            if (optionsProvider.GlobalOptions.TryGetValue(key, out var value) &&
-                bool.TryParse(value, out var enabled))
-            {
-                builder[ruleId] = enabled;
-                continue;
-            }
+        var key = "build_property.WakazeDisabledAnas";
 
-            builder[ruleId] = true;
-        }
+        if (optionsProvider.GlobalOptions.TryGetValue(key, out var disabledRules))
+            foreach (var rules in disabledRules.Split([';'],
+                         StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()))
+                builder[rules] = false;
 
         return new KwaAnalyzerOptions(builder.ToImmutable());
     }
@@ -50,10 +45,5 @@ internal sealed class KwaAnalyzerOptions
     public bool IsEnabled(string ruleId)
     {
         return !_enabledRules.TryGetValue(ruleId, out var enabled) || enabled;
-    }
-
-    public static string GetPropertyName(string ruleId)
-    {
-        return "Enable" + ruleId;
     }
 }
