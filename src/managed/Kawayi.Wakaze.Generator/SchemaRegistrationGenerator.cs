@@ -14,9 +14,9 @@ namespace Kawayi.Wakaze.Generator;
 public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
 {
     private const string Category = "Usage";
-    private const string RegisterSchemaAttributeMetadataName = "Kawayi.Wakaze.Abstractions.RegisterSchemaAttribute";
+    private const string RegisterSchemaAttributeMetadataName = "Kawayi.Wakaze.Abstractions.Schema.RegisterSchemaAttribute";
     private const string ProjectToAttributeMetadataName = "Kawayi.Wakaze.Abstractions.ProjectToAttribute";
-    private const string SchemaDefinitionMetadataName = "Kawayi.Wakaze.Abstractions.ISchemaDefinition`2";
+    private const string SchemaDefinitionMetadataName = "Kawayi.Wakaze.Abstractions.Schema.ISchemaDefinition`2";
     private const string TypedObjectMetadataName = "Kawayi.Wakaze.Abstractions.ITypedObject";
     private const string GeneratedNamespace = "Kawayi.Wakaze.Generated";
 
@@ -336,7 +336,7 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
         builder.Append("namespace ").Append(GeneratedNamespace).AppendLine(";");
         builder.AppendLine();
         builder.Append("internal sealed partial class ").Append(className)
-            .AppendLine(" : global::Kawayi.Wakaze.Abstractions.ISchemaRegistration");
+            .AppendLine(" : global::Kawayi.Wakaze.Abstractions.Schema.ISchemaRegistration");
         builder.AppendLine("{");
 
         for (var index = 0; index < projectors.Length; index++)
@@ -347,8 +347,8 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
 
         builder.AppendLine("    /// <inheritdoc />");
         builder.AppendLine("    public void Register(");
-        builder.AppendLine("        global::Kawayi.Wakaze.Abstractions.SchemaCompatibilityGraph compatibility,");
-        builder.AppendLine("        global::Kawayi.Wakaze.Abstractions.SchemaProjectorRegistry projector)");
+        builder.AppendLine("        global::Kawayi.Wakaze.Abstractions.Schema.SchemaCompatibilityGraph compatibility,");
+        builder.AppendLine("        global::Kawayi.Wakaze.Abstractions.Schema.SchemaProjectorRegistry projector)");
         builder.AppendLine("    {");
 
         foreach (var schema in schemas)

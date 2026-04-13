@@ -15,5 +15,10 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\Kawayi.Wakaze.Analyzer\Kawayi.Wakaze.Analyzer.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+    </ItemGroup>
 
 </Project>

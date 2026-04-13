@@ -25,10 +25,10 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
     public const string FamilySchemeConsistencyRuleId = "KWA0004";
 
     private const string Category = "Usage";
-    private const string RegisterSchemaAttributeMetadataName = "Kawayi.Wakaze.Abstractions.RegisterSchemaAttribute";
-    private const string SchemaDefinitionMetadataName = "Kawayi.Wakaze.Abstractions.ISchemaDefinition`2";
-    private const string SchemaIdMetadataName = "Kawayi.Wakaze.Abstractions.SchemaId";
-    private const string SchemaFamilyMetadataName = "Kawayi.Wakaze.Abstractions.SchemaFamily";
+    private const string RegisterSchemaAttributeMetadataName = "Kawayi.Wakaze.Abstractions.Schema.RegisterSchemaAttribute";
+    private const string SchemaDefinitionMetadataName = "Kawayi.Wakaze.Abstractions.Schema.ISchemaDefinition`2";
+    private const string SchemaIdMetadataName = "Kawayi.Wakaze.Abstractions.Schema.SchemaId";
+    private const string SchemaFamilyMetadataName = "Kawayi.Wakaze.Abstractions.Schema.SchemaFamily";
 
     internal static readonly DiagnosticDescriptor SchemaFamilyMismatch = new(
         SchemaFamilyConsistencyRuleId,
@@ -58,6 +58,7 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
 
         context.RegisterCompilationStartAction(static compilationContext =>
         {
+            var options = KwaAnalyzerOptions.Create(compilationContext.Options.AnalyzerConfigOptionsProvider);
             var registerSchemaAttribute =
                 compilationContext.Compilation.GetTypeByMetadataName(RegisterSchemaAttributeMetadataName);
             var schemaDefinitionInterface =
@@ -70,6 +71,7 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
             compilationContext.RegisterSymbolAction(
                 symbolContext => AnalyzeNamedType(
                     symbolContext,
+                    options,
                     registerSchemaAttribute,
                     schemaDefinitionInterface),
                 SymbolKind.NamedType);
@@ -78,6 +80,7 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
 
     private static void AnalyzeNamedType(
         SymbolAnalysisContext context,
+        KwaAnalyzerOptions options,
         INamedTypeSymbol registerSchemaAttribute,
         INamedTypeSymbol schemaDefinitionInterface)
     {
@@ -95,23 +98,25 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
         if (TryEvaluateSchemaFamily(type, out var schemaIdText, out var schemaFamilyText, out var schemaLocation) &&
             TryEvaluateFamily(familyType, out var declaredFamilyText, out _) &&
             !StringComparer.Ordinal.Equals(schemaFamilyText, declaredFamilyText))
-            context.ReportDiagnostic(Diagnostic.Create(
-                SchemaFamilyMismatch,
-                schemaLocation,
-                schemaIdText,
-                schemaFamilyText,
-                declaredFamilyText));
+            if (options.IsEnabled(SchemaFamilyConsistencyRuleId))
+                context.ReportDiagnostic(Diagnostic.Create(
+                    SchemaFamilyMismatch,
+                    schemaLocation,
+                    schemaIdText,
+                    schemaFamilyText,
+                    declaredFamilyText));
 
         if (TryEvaluateFamily(familyType, out var actualFamilyText, out var familyLocation) &&
-            TryEvaluateUriScheme(schemeType, out var declaredScheme, out _) &&
+            TryEvaluateDeclaredScheme(schemeType, out var declaredScheme, out _) &&
             SchemaStringValidator.TryGetSchemaFamilyScheme(actualFamilyText, out var actualScheme) &&
             !StringComparer.OrdinalIgnoreCase.Equals(actualScheme, declaredScheme))
-            context.ReportDiagnostic(Diagnostic.Create(
-                FamilySchemeMismatch,
-                familyLocation,
-                actualFamilyText,
-                actualScheme,
-                declaredScheme));
+            if (options.IsEnabled(FamilySchemeConsistencyRuleId))
+                context.ReportDiagnostic(Diagnostic.Create(
+                    FamilySchemeMismatch,
+                    familyLocation,
+                    actualFamilyText,
+                    actualScheme,
+                    declaredScheme));
     }
 
     private static bool HasAttribute(INamedTypeSymbol type, INamedTypeSymbol attributeType)
@@ -177,7 +182,7 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
         return true;
     }
 
-    private static bool TryEvaluateUriScheme(
+    private static bool TryEvaluateDeclaredScheme(
         INamedTypeSymbol type,
         out string scheme,
         out Location location)
@@ -185,11 +190,11 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
         scheme = string.Empty;
         location = type.Locations.FirstOrDefault() ?? Location.None;
 
-        if (!TryGetPropertyExpression(type, "UriScheme", out var expression, out location)) return false;
+        if (TryGetPropertyExpression(type, "UriScheme", out var expression, out location) &&
+            TryGetLiteralString(expression, out scheme))
+            return true;
 
-        if (!TryGetLiteralString(expression, out scheme)) return false;
-
-        return true;
+        return TryGetBaseTypeArgument(type, out scheme, out location);
     }
 
     private static bool TryGetPropertyExpression(
@@ -259,6 +264,9 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
                 => TryGetSingleLiteralStringArgument(creation.ArgumentList, out value),
             ImplicitObjectCreationExpressionSyntax creation
                 => TryGetSingleLiteralStringArgument(creation.ArgumentList, out value),
+            InvocationExpressionSyntax invocation
+                when IsExpectedStaticMethod(invocation.Expression, expectedMetadataName, "Parse")
+                => TryGetSingleLiteralStringArgument(invocation.ArgumentList, out value),
             _ => false
         };
     }
@@ -272,6 +280,18 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
                text.EndsWith("." + simpleName, StringComparison.Ordinal);
     }
 
+    private static bool IsExpectedStaticMethod(
+        ExpressionSyntax expression,
+        string expectedMetadataName,
+        string methodName)
+    {
+        var simpleName = expectedMetadataName.Substring(expectedMetadataName.LastIndexOf('.') + 1);
+        var text = expression.ToString();
+        return text == $"{simpleName}.{methodName}" ||
+               text == $"global::{expectedMetadataName}.{methodName}" ||
+               text.EndsWith("." + simpleName + "." + methodName, StringComparison.Ordinal);
+    }
+
     private static bool TryGetSingleLiteralStringArgument(BaseArgumentListSyntax? argumentList, out string value)
     {
         value = string.Empty;
@@ -279,6 +299,39 @@ public sealed class RegisterSchemaMetadataConsistencyAnalyzer : DiagnosticAnalyz
         if (argumentList?.Arguments.Count != 1) return false;
 
         return TryGetLiteralString(argumentList.Arguments[0].Expression, out value);
+    }
+
+    private static bool TryGetBaseTypeArgument(
+        INamedTypeSymbol type,
+        out string scheme,
+        out Location location)
+    {
+        scheme = string.Empty;
+        location = type.Locations.FirstOrDefault() ?? Location.None;
+
+        foreach (var syntaxReference in type.DeclaringSyntaxReferences)
+        {
+            var syntax = syntaxReference.GetSyntax();
+            var baseList = syntax switch
+            {
+                ClassDeclarationSyntax classDeclaration => classDeclaration.BaseList,
+                RecordDeclarationSyntax recordDeclaration => recordDeclaration.BaseList,
+                _ => null
+            };
+
+            if (baseList is null) continue;
+
+            foreach (var baseType in baseList.Types)
+            {
+                if (baseType is not PrimaryConstructorBaseTypeSyntax primaryBaseType) continue;
+                if (!TryGetSingleLiteralStringArgument(primaryBaseType.ArgumentList, out scheme)) continue;
+
+                location = primaryBaseType.GetLocation();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryGetLiteralString(ExpressionSyntax expression, out string value)

@@ -35,12 +35,17 @@ public readonly record struct SchemaId<T> : IParsable<SchemaId<T>> where T : ISc
     {
         result = default;
 
-        if (SchemaId.TryParse(s, provider, out var id)) return false;
+        if (!SchemaId.TryParse(s, provider, out var id)) return false;
 
         if (id.Family.Kind != T.UriScheme) return false;
 
         result = new SchemaId<T>(id);
         return true;
+    }
+
+    public override string ToString()
+    {
+        return Id.ToString();
     }
 
     public static implicit operator SchemaId(SchemaId<T> d)

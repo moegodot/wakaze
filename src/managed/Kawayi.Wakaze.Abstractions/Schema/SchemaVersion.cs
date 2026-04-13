@@ -129,7 +129,7 @@ public readonly struct SchemaVersion : IEquatable<SchemaVersion>, IComparable<Sc
     public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider,
         [MaybeNullWhen(false)] out SchemaVersion result)
     {
-        if (uint.TryParse(s, provider, out var ver))
+        if (uint.TryParse(s, provider, out var ver) && ver != 0)
         {
             result = new SchemaVersion(ver);
             return true;

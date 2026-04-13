@@ -31,6 +31,17 @@
 
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <RestoreLockedMode>true</RestoreLockedMode>
+        <WarningLevel>4</WarningLevel>
+        <EnableKWA0001>true</EnableKWA0001>
+        <EnableKWA0002>true</EnableKWA0002>
+        <EnableKWA0003>true</EnableKWA0003>
+        <EnableKWA0004>true</EnableKWA0004>
+        <EnableKWA0005>true</EnableKWA0005>
+        <EnableKWA0006>true</EnableKWA0006>
+        <EnableKWA0007>true</EnableKWA0007>
+        <EnableKWA0008>true</EnableKWA0008>
+        <EnableKWA0009>true</EnableKWA0009>
+        <EnableKWA0010>true</EnableKWA0010>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' != 'true'">
@@ -40,11 +51,11 @@
         <OutputType Condition="'$(MSBuildProjectName.EndsWith(`.Cli`))' == 'true'">Exe</OutputType>
     </PropertyGroup>
 
-    <ItemGroup Condition="'$(MSBuildProjectName.EndsWith(`.Analyzer`))' != 'true' And '$(MSBuildProjectName.EndsWith(`.Generator`))' != 'true'">
+    <ItemGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' != 'true' And '$(MSBuildProjectName.EndsWith(`.Analyzer`))' != 'true' And '$(MSBuildProjectName.EndsWith(`.Generator`))' != 'true'">
         <ProjectReference Include="$(MSBuildThisFileDirectory)\src\managed\Kawayi.Wakaze.Analyzer\Kawayi.Wakaze.Analyzer.csproj"
-                            OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
         <ProjectReference Include="$(MSBuildThisFileDirectory)\src\managed\Kawayi.Wakaze.Generator\Kawayi.Wakaze.Generator.csproj"
-                            OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+                          OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
     <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' == 'true'">
@@ -55,6 +66,16 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <CompilerVisibleProperty Include="EnableKWA0001"/>
+        <CompilerVisibleProperty Include="EnableKWA0002"/>
+        <CompilerVisibleProperty Include="EnableKWA0003"/>
+        <CompilerVisibleProperty Include="EnableKWA0004"/>
+        <CompilerVisibleProperty Include="EnableKWA0005"/>
+        <CompilerVisibleProperty Include="EnableKWA0006"/>
+        <CompilerVisibleProperty Include="EnableKWA0007"/>
+        <CompilerVisibleProperty Include="EnableKWA0008"/>
+        <CompilerVisibleProperty Include="EnableKWA0009"/>
+        <CompilerVisibleProperty Include="EnableKWA0010"/>
         <None Include="$(MSBuildThisFileDirectory)/images/icon.png" Pack="true" PackagePath="\"/>
         <None Include="$(MSBuildThisFileDirectory)/README.md" Pack="true" PackagePath="\"/>
 

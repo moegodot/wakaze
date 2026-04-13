@@ -29,7 +29,11 @@ public readonly struct SchemaFamily : IEquatable<SchemaFamily>, IParsable<Schema
 
     public SchemaFamily(string s)
     {
-        var family = Parse(s, null);
+        ArgumentNullException.ThrowIfNull(s);
+
+        if (!TryParse(s, out var family, out var error))
+            throw new ArgumentException(error, nameof(s));
+
         Kind = family.Kind;
         Authority = family.Authority;
         Namespace = family.Namespace;
@@ -41,7 +45,7 @@ public readonly struct SchemaFamily : IEquatable<SchemaFamily>, IParsable<Schema
         ArgumentException.ThrowIfNullOrWhiteSpace(authority);
         ArgumentException.ThrowIfNullOrWhiteSpace(@namespace);
 
-        if (Uri.CheckSchemeName(kind))
+        if (!Uri.CheckSchemeName(kind))
             throw new ArgumentException("The kind is not a valid URI scheme name.", nameof(kind));
         if (UriHostNameType.Dns != Uri.CheckHostName(authority))
             throw new ArgumentException("The authority is not a valid host name or the UriHostNameType isn't Dns.",
@@ -154,7 +158,7 @@ public readonly struct SchemaFamily : IEquatable<SchemaFamily>, IParsable<Schema
     {
         Kind = value.Scheme;
         Authority = value.Authority;
-        Namespace = string.Join('/', value.AbsolutePath.Split('/')[0..^1]);
+        Namespace = string.Join('/', GetPathSegments(value.AbsolutePath));
     }
 
     public static bool TryValidateFamilyUri(Uri value, [NotNullWhen(true)] out SchemaFamily family,
@@ -210,10 +214,7 @@ public readonly struct SchemaFamily : IEquatable<SchemaFamily>, IParsable<Schema
             return false;
         }
 
-        var pathSegments = absolutePath
-            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(Uri.UnescapeDataString)
-            .ToArray();
+        var pathSegments = GetPathSegments(absolutePath);
 
         if (pathSegments.Length == 0)
         {
@@ -224,6 +225,14 @@ public readonly struct SchemaFamily : IEquatable<SchemaFamily>, IParsable<Schema
         error = null;
         family = new SchemaFamily(value);
         return true;
+    }
+
+    internal static string[] GetPathSegments(string absolutePath)
+    {
+        return absolutePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(Uri.UnescapeDataString)
+            .ToArray();
     }
 
     public static SchemaFamily Parse(string s, IFormatProvider? _provider)

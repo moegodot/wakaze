@@ -19,7 +19,7 @@ public class DatabaseSchemaIdentifierTests
 
         await Assert.That(descriptor.ProviderId).IsEqualTo(providerScheme);
         await Assert.That(descriptor.Engine).IsEqualTo(schema);
-        await Assert.That(descriptor.ProviderId.ToString()).IsEqualTo("database://wakaze.dev/postgresql/v1");
+        await Assert.That(descriptor.ProviderId.ToString()).IsEqualTo("database-provider://wakaze.dev/postgresql/v1");
         await Assert.That(descriptor.Engine.ToString()).IsEqualTo("database://wakaze.dev/postgresql/v1");
     }
 

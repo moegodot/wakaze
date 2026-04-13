@@ -10,6 +10,8 @@ internal static class SchemaRegistrationGeneratorVerifier
     private const string CommonUsings = """
                                         using System;
                                         using System.Collections.Generic;
+                                        using Kawayi.Wakaze.Abstractions;
+                                        using Kawayi.Wakaze.Abstractions.Schema;
                                         """;
 
     public static VerificationResult Run(string source)

@@ -7,25 +7,24 @@ using Microsoft.CodeAnalysis.Operations;
 namespace Kawayi.Wakaze.Analyzer;
 
 /// <summary>
-/// Reports invalid constant string values passed to schema identifier constructors.
+/// Reports invalid constant string values passed to schema parsing entry points.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
 {
     /// <summary>
-    /// Identifies invalid constant strings passed to <c>SchemaFamily(string)</c>.
+    /// Identifies invalid constant strings passed to <c>SchemaFamily</c> parsing entry points.
     /// </summary>
     public const string SchemaFamilyRuleId = "KWA0001";
 
     /// <summary>
-    /// Identifies invalid constant strings passed to <c>SchemaId(string)</c>.
+    /// Identifies invalid constant strings passed to <c>SchemaId</c> parsing entry points.
     /// </summary>
     public const string SchemaIdRuleId = "KWA0002";
 
     private const string Category = "Usage";
-    private const string SchemaFamilyMetadataName = "Kawayi.Wakaze.Abstractions.SchemaFamily";
-    private const string SchemaIdMetadataName = "Kawayi.Wakaze.Abstractions.SchemaId";
-    private const string StringMetadataName = "System.String";
+    private const string SchemaFamilyMetadataName = "Kawayi.Wakaze.Abstractions.Schema.SchemaFamily";
+    private const string SchemaIdMetadataName = "Kawayi.Wakaze.Abstractions.Schema.SchemaId";
 
     internal static readonly DiagnosticDescriptor InvalidSchemaFamilyString = new(
         SchemaFamilyRuleId,
@@ -55,19 +54,24 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
 
         context.RegisterCompilationStartAction(static compilationContext =>
         {
+            var options = KwaAnalyzerOptions.Create(compilationContext.Options.AnalyzerConfigOptionsProvider);
             var schemaFamilyType = compilationContext.Compilation.GetTypeByMetadataName(SchemaFamilyMetadataName);
             var schemaIdType = compilationContext.Compilation.GetTypeByMetadataName(SchemaIdMetadataName);
 
             if (schemaFamilyType is null && schemaIdType is null) return;
 
             compilationContext.RegisterOperationAction(
-                operationContext => AnalyzeObjectCreation(operationContext, schemaFamilyType, schemaIdType),
+                operationContext => AnalyzeObjectCreation(operationContext, options, schemaFamilyType, schemaIdType),
                 OperationKind.ObjectCreation);
+            compilationContext.RegisterOperationAction(
+                operationContext => AnalyzeInvocation(operationContext, options, schemaFamilyType, schemaIdType),
+                OperationKind.Invocation);
         });
     }
 
     private static void AnalyzeObjectCreation(
         OperationAnalysisContext context,
+        KwaAnalyzerOptions options,
         INamedTypeSymbol? schemaFamilyType,
         INamedTypeSymbol? schemaIdType)
     {
@@ -82,20 +86,53 @@ public sealed class SchemaStringConstructorAnalyzer : DiagnosticAnalyzer
         var targetType = constructor.ContainingType;
         var argument = operation.Arguments[0].Value;
 
+        AnalyzeConstantStringArgument(context, options, targetType, argument, schemaFamilyType, schemaIdType);
+    }
+
+    private static void AnalyzeInvocation(
+        OperationAnalysisContext context,
+        KwaAnalyzerOptions options,
+        INamedTypeSymbol? schemaFamilyType,
+        INamedTypeSymbol? schemaIdType)
+    {
+        var operation = (IInvocationOperation)context.Operation;
+        var method = operation.TargetMethod;
+
+        if (!method.IsStatic) return;
+        if (method.Name is not ("Parse" or "TryParse")) return;
+        if (operation.Arguments.Length == 0) return;
+
+        var argument = operation.Arguments[0].Value;
+        if (argument.Type?.SpecialType != SpecialType.System_String) return;
+
+        AnalyzeConstantStringArgument(context, options, method.ContainingType, argument, schemaFamilyType, schemaIdType);
+    }
+
+    private static void AnalyzeConstantStringArgument(
+        OperationAnalysisContext context,
+        KwaAnalyzerOptions options,
+        INamedTypeSymbol targetType,
+        IOperation argument,
+        INamedTypeSymbol? schemaFamilyType,
+        INamedTypeSymbol? schemaIdType)
+    {
         if (!TryGetConstantString(argument, out var value)) return;
 
         if (schemaFamilyType is not null &&
             SymbolEqualityComparer.Default.Equals(targetType, schemaFamilyType) &&
             !SchemaStringValidator.IsValidSchemaFamily(value))
         {
-            context.ReportDiagnostic(Diagnostic.Create(InvalidSchemaFamilyString, argument.Syntax.GetLocation()));
+            if (options.IsEnabled(SchemaFamilyRuleId))
+                context.ReportDiagnostic(Diagnostic.Create(InvalidSchemaFamilyString, argument.Syntax.GetLocation()));
+
             return;
         }
 
         if (schemaIdType is not null &&
             SymbolEqualityComparer.Default.Equals(targetType, schemaIdType) &&
             !SchemaStringValidator.IsValidSchemaId(value))
-            context.ReportDiagnostic(Diagnostic.Create(InvalidSchemaIdString, argument.Syntax.GetLocation()));
+            if (options.IsEnabled(SchemaIdRuleId))
+                context.ReportDiagnostic(Diagnostic.Create(InvalidSchemaIdString, argument.Syntax.GetLocation()));
     }
 
     private static bool TryGetConstantString(IOperation operation, out string? value)

@@ -34,7 +34,7 @@ public class RegisterSchemaMetadataConsistencyAnalyzerTests
     }
 
     [Test]
-    public async Task RegisterSchema_With_Mismatched_Schema_Family_Reports_AB0003()
+    public async Task RegisterSchema_With_Mismatched_Schema_Family_Reports_KWA0003()
     {
         var source = """
                      using System.Collections.Generic;
@@ -67,7 +67,7 @@ public class RegisterSchemaMetadataConsistencyAnalyzerTests
     }
 
     [Test]
-    public async Task RegisterSchema_With_Mismatched_Family_Scheme_Reports_AB0004()
+    public async Task RegisterSchema_With_Mismatched_Family_Scheme_Reports_KWA0004()
     {
         var source = """
                      using System.Collections.Generic;
@@ -100,7 +100,7 @@ public class RegisterSchemaMetadataConsistencyAnalyzerTests
     }
 
     [Test]
-    public async Task RegisterSchema_With_Both_Mismatches_Reports_AB0003_And_AB0004()
+    public async Task RegisterSchema_With_Both_Mismatches_Reports_KWA0003_And_KWA0004()
     {
         var source = """
                      using System.Collections.Generic;
@@ -283,6 +283,43 @@ public class RegisterSchemaMetadataConsistencyAnalyzerTests
         await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(
             source,
             SchemaStringConstructorAnalyzer.SchemaIdRuleId,
+            RegisterSchemaMetadataConsistencyAnalyzer.FamilySchemeConsistencyRuleId);
+    }
+
+    [Test]
+    public async Task EnableKWA0003_False_Suppresses_Only_KWA0003()
+    {
+        var source = """
+                     using System.Collections.Generic;
+                     using Kawayi.Wakaze.Abstractions;
+
+                     namespace Demo;
+
+                     public sealed class SemanticScheme : ISchemaUriSchemeDefinition
+                     {
+                         public static string UriScheme => "semantic";
+                     }
+
+                     public sealed class FooFamily : ISchemaFamilyDefinition<SemanticScheme>
+                     {
+                         public static SchemaFamily Family => new("database://wakaze.dev/foo");
+                     }
+
+                     [RegisterSchema]
+                     public sealed class FooV1Schema : ISchemaDefinition<FooFamily, SemanticScheme>
+                     {
+                         public static SchemaId Schema => new("semantic://wakaze.dev/bar/v1");
+                         public static IReadOnlyList<SchemaId> CompatibleTargets => [];
+                         public static IReadOnlyList<SchemaId> ProjectableTargets => [];
+                     }
+                     """;
+
+        await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(
+            source,
+            new Dictionary<string, string>
+            {
+                ["EnableKWA0003"] = "false"
+            },
             RegisterSchemaMetadataConsistencyAnalyzer.FamilySchemeConsistencyRuleId);
     }
 }

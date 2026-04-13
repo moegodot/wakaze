@@ -6,8 +6,6 @@ public class SchemaIdStringConstructorAnalyzerTests
     public async Task Valid_String_Literal_Does_Not_Report()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      var schema = new SchemaId("semantic://wakaze.dev/tag/v2");
                      """;
 
@@ -15,11 +13,9 @@ public class SchemaIdStringConstructorAnalyzerTests
     }
 
     [Test]
-    public async Task Invalid_String_Literal_Reports_AB0002()
+    public async Task Invalid_String_Literal_Reports_KWA0002()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      var schema = new SchemaId("semantic://wakaze.dev/tag");
                      """;
 
@@ -28,11 +24,9 @@ public class SchemaIdStringConstructorAnalyzerTests
     }
 
     [Test]
-    public async Task Invalid_Const_String_Reports_AB0002()
+    public async Task Invalid_Const_String_Reports_KWA0002()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      const string schemaText = "semantic://wakaze.dev/tag/v01";
                      var schema = new SchemaId(schemaText);
                      """;
@@ -42,11 +36,9 @@ public class SchemaIdStringConstructorAnalyzerTests
     }
 
     [Test]
-    public async Task Invalid_Constant_Concatenation_Reports_AB0002()
+    public async Task Invalid_Constant_Concatenation_Reports_KWA0002()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      const string prefix = "semantic://wakaze.dev/tag/";
                      const string version = "version2";
                      var schema = new SchemaId(prefix + version);
@@ -57,11 +49,9 @@ public class SchemaIdStringConstructorAnalyzerTests
     }
 
     [Test]
-    public async Task Null_Constant_Reports_AB0002()
+    public async Task Null_Constant_Reports_KWA0002()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      var schema = new SchemaId(null);
                      """;
 
@@ -73,8 +63,6 @@ public class SchemaIdStringConstructorAnalyzerTests
     public async Task NonConstant_Value_Does_Not_Report()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      string version = "v2";
                      var schema = new SchemaId($"semantic://wakaze.dev/tag/{version}");
                      """;
@@ -83,12 +71,42 @@ public class SchemaIdStringConstructorAnalyzerTests
     }
 
     [Test]
-    public async Task TargetTyped_New_Reports_AB0002()
+    public async Task TargetTyped_New_Reports_KWA0002()
     {
         var source = """
-                     using Kawayi.Wakaze.Abstractions;
-
                      SchemaId schema = new("semantic://wakaze.dev/tag/v0");
+                     """;
+
+        await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(source,
+            SchemaStringConstructorAnalyzer.SchemaIdRuleId);
+    }
+
+    [Test]
+    public async Task Parse_Invalid_String_Literal_Reports_KWA0002()
+    {
+        var source = """
+                     var schema = SchemaId.Parse("semantic://wakaze.dev/tag", null);
+                     """;
+
+        await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(source,
+            SchemaStringConstructorAnalyzer.SchemaIdRuleId);
+    }
+
+    [Test]
+    public async Task Parse_Valid_String_Literal_Does_Not_Report()
+    {
+        var source = """
+                     var schema = SchemaId.Parse("semantic://wakaze.dev/tag/v2", null);
+                     """;
+
+        await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(source);
+    }
+
+    [Test]
+    public async Task TryParse_Invalid_String_Literal_Reports_KWA0002()
+    {
+        var source = """
+                     var result = SchemaId.TryParse("semantic://wakaze.dev/tag/v01", null, out var schema);
                      """;
 
         await SchemaStringConstructorAnalyzerVerifier.VerifyAsync(source,
