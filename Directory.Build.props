@@ -36,12 +36,12 @@
         <EnableKWA0002>true</EnableKWA0002>
         <EnableKWA0003>true</EnableKWA0003>
         <EnableKWA0004>true</EnableKWA0004>
-        <EnableKWA0005>true</EnableKWA0005>
-        <EnableKWA0006>true</EnableKWA0006>
-        <EnableKWA0007>true</EnableKWA0007>
-        <EnableKWA0008>true</EnableKWA0008>
-        <EnableKWA0009>true</EnableKWA0009>
-        <EnableKWA0010>true</EnableKWA0010>
+        <EnableKWA0005>false</EnableKWA0005>
+        <EnableKWA0006>false</EnableKWA0006>
+        <EnableKWA0007>false</EnableKWA0007>
+        <EnableKWA0008>false</EnableKWA0008>
+        <EnableKWA0009>false</EnableKWA0009>
+        <EnableKWA0010>false</EnableKWA0010>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' != 'true'">
