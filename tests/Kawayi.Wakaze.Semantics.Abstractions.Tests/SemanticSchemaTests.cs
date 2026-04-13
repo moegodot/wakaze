@@ -91,9 +91,7 @@ public class SemanticSchemaTests
 
     private static EntityRevision CreateRevision()
     {
-        return new EntityRevision(
-            EntityId.GenerateNew(),
-            new Revision(Guid.CreateVersion7(), 1, 1));
+        return EntityRevision.GenerateNew(EntityId.GenerateNew());
     }
 
     private static void AssertThrows<TException>(Action action)

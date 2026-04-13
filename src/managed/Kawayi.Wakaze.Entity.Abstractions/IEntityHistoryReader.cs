@@ -8,15 +8,14 @@ public interface IEntityHistoryReader
     /// <summary>
     /// Retrieves the entity content associated with a specific revision token.
     /// </summary>
-    /// <param name="id">The entity identifier.</param>
-    /// <param name="revision">The revision token to read.</param>
+    /// <param name="revision">The historical revision token to read.</param>
     /// <param name="cancellationToken">A token that cancels the operation.</param>
     /// <returns>
     /// A task that resolves to the entity content for the requested revision,
     /// or <see langword="null"/> when the requested revision is not available.
+    /// Historical reads are the explicit surface where retained tombstones and deleted revisions may appear.
     /// </returns>
     ValueTask<Entity?> GetByRevisionAsync(
-        EntityId id,
         EntityRevision revision,
         CancellationToken cancellationToken = default);
 

@@ -40,29 +40,11 @@
       "kawayi.wakaze.abstractions": {
         "type": "Project"
       },
-      "kawayi.wakaze.cas.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "Kawayi.Wakaze.Digest": "[1.0.0, )"
-        }
-      },
-      "kawayi.wakaze.digest": {
-        "type": "Project",
-        "dependencies": {
-          "Blake3": "[2.2.1, )"
-        }
-      },
       "kawayi.wakaze.entity.abstractions": {
         "type": "Project",
         "dependencies": {
-          "Kawayi.Wakaze.Cas.Abstractions": "[1.0.0, )"
+          "Kawayi.Wakaze.Abstractions": "[1.0.0, )"
         }
-      },
-      "Blake3": {
-        "type": "CentralTransitive",
-        "requested": "[2.2.1, )",
-        "resolved": "2.2.1",
-        "contentHash": "HfNW2Iiy4hCaVDVGFEyk0mks+M5HSU3O8O517LyYkI6FFuj2jpvNlag4kGQFDSRmJi4/axgOei8k02NKq/uoDg=="
       }
     }
   }

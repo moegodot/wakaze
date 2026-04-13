@@ -2,7 +2,7 @@
 
     <ItemGroup>
         <PackageReference Include="TUnit"/>
-        <ProjectReference Include="../../src/managed/Kawayi.Wakaze.Entity.Sqlite/Kawayi.Wakaze.Entity.Sqlite.csproj"/>
+        <ProjectReference Include="../../src/managed/Kawayi.Wakaze.Abstractions/Kawayi.Wakaze.Abstractions.csproj"/>
         <ProjectReference Include="../../src/managed/Kawayi.Wakaze.Entity.Abstractions/Kawayi.Wakaze.Entity.Abstractions.csproj"/>
     </ItemGroup>
 

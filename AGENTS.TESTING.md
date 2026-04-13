@@ -22,12 +22,12 @@
 - `tests/Kawayi.Wakaze.Cas.Local.Tests`
 - `tests/Kawayi.Wakaze.Db.PostgreSql.Tests`
 - `tests/Kawayi.Wakaze.Digest.Tests`
-- `tests/Kawayi.Wakaze.Entity.Sqlite.Tests`
+- `tests/Kawayi.Wakaze.Entity.Abstractions.Tests`
 - `tests/Kawayi.Wakaze.IO.Tests`
 - `tests/Kawayi.Wakaze.Process.Tests`
 - `tests/Kawayi.Wakaze.Semantics.Abstractions.Tests`
-- `tests/Kawayi.Wakaze.Analyzer`
-- `tests/Kawayi.Wakaze.Generator`
+- `tests/Kawayi.Wakaze.Analyzer.Tests`
+- `tests/Kawayi.Wakaze.Generator.Tests`
 
 ## 当前已验证命令
 

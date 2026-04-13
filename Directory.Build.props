@@ -32,7 +32,7 @@
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
         <RestoreLockedMode>true</RestoreLockedMode>
         <WarningLevel>4</WarningLevel>
-        <WakazeDisabledAnas>KWA0005;WA0006;KWA0007;KWA0008;KWA0009;KWA0010</WakazeDisabledAnas>
+        <WakazeDisabledAnas>KWA0005;KWA0006;KWA0007;KWA0008;KWA0009;KWA0010</WakazeDisabledAnas>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' != 'true'">
@@ -58,7 +58,7 @@
 
     <ItemGroup>
         <CompilerVisibleProperty Include="WakazeDisabledAnas"/>
-        
+
         <None Include="$(MSBuildThisFileDirectory)/images/icon.png" Pack="true" PackagePath="\"/>
         <None Include="$(MSBuildThisFileDirectory)/README.md" Pack="true" PackagePath="\"/>
 

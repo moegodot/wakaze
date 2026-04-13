@@ -1,34 +1,18 @@
 using Kawayi.Wakaze.Abstractions;
 using Kawayi.Wakaze.Abstractions.Schema;
+using Kawayi.Wakaze.Cas.Abstractions;
 
 namespace Kawayi.Wakaze.Entity.Abstractions;
 
-/// <summary>
-/// Represents a logical reference edge between two currently visible entities.
-/// </summary>
-public readonly record struct EntityRef
+public sealed record BlobRef
 {
-    public SchemaId<PluginSchema> Owner { get; init; }
-
-    public string Description { get; init; }
-
-    /// <summary>
-    /// Gets the source entity identifier.
-    /// </summary>
-    /// <value>The source entity identifier.</value>
     public EntityId From { get; init; }
 
-    /// <summary>
-    /// Gets the target entity identifier.
-    /// </summary>
-    /// <value>The target entity identifier.</value>
-    public EntityId To { get; init; }
+    public BlobId To { get; init; }
 
-    /// <summary>
-    /// Gets the reachability semantics of the reference.
-    /// </summary>
-    /// <value>The reachability semantics of the reference.</value>
-    public RefKind RefKind { get; init; }
+    public SchemaId<PluginSchema> Creator { get; init; }
+
+    public string Description { get; init; }
 
     /// <summary>
     /// Gets the timestamp when the entity was first created.

@@ -11,7 +11,6 @@ public interface ISemanticReader
     /// Retrieves the semantic state associated with the current entity view.
     /// </summary>
     /// <param name="id">The entity identifier.</param>
-    /// <param name="options">Optional behaviors for the read operation.</param>
     /// <param name="cancellationToken">A token that cancels the operation.</param>
     /// <returns>
     /// A task that resolves to the current semantic state,
@@ -19,13 +18,11 @@ public interface ISemanticReader
     /// </returns>
     ValueTask<SemanticClaim?> GetAsync(
         EntityId id,
-        EntityReadOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves the semantic state associated with a specific entity revision.
     /// </summary>
-    /// <param name="id">The entity identifier.</param>
     /// <param name="revision">The revision token to read.</param>
     /// <param name="cancellationToken">A token that cancels the operation.</param>
     /// <returns>
@@ -33,7 +30,6 @@ public interface ISemanticReader
     /// or <see langword="null"/> when the revision is not available.
     /// </returns>
     ValueTask<SemanticClaim?> GetByRevisionAsync(
-        EntityId id,
         EntityRevision revision,
         CancellationToken cancellationToken = default);
 }

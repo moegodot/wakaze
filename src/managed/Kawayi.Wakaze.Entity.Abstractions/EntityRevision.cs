@@ -1,61 +1,50 @@
 namespace Kawayi.Wakaze.Entity.Abstractions;
 
 /// <summary>
-/// Represents an opaque revision token for an entity.
+/// Represents an opaque revision token for a specific entity revision.
 /// </summary>
 /// <remarks>
 /// Callers should treat this type as a value used for optimistic concurrency and historical lookup.
-/// Its internal structure is not part of the public contract.
+/// The public contract does not define any ordering or monotonicity semantics.
 /// </remarks>
-public readonly struct EntityRevision : IEquatable<EntityRevision>
+public readonly record struct EntityRevision
 {
-    private readonly Revision _revision;
-    private readonly EntityId _entityId;
-
-    public EntityRevision(EntityId entityId, Revision revision)
-    {
-        _entityId = entityId;
-        _revision = revision;
-    }
-
-    public Revision Revision => _revision;
-    public EntityId EntityId => _entityId;
-
     /// <summary>
-    /// Determines whether the current revision token is equal to another revision token.
+    /// Initializes a new <see cref="EntityRevision"/>.
     /// </summary>
-    /// <param name="other">The revision token to compare with the current value.</param>
-    /// <returns><see langword="true"/> when the tokens are equal; otherwise, <see langword="false"/>.</returns>
-    public bool Equals(EntityRevision other)
+    /// <param name="entityId">The entity that owns the revision.</param>
+    /// <param name="token">The opaque token that identifies the revision.</param>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="token"/> is empty.</exception>
+    public EntityRevision(EntityId entityId, Guid token)
     {
-        return _entityId == other._entityId && _revision == other._revision;
+        if (token == Guid.Empty)
+        {
+            throw new ArgumentException("The revision token must not be empty.", nameof(token));
+        }
+
+        EntityId = entityId;
+        Token = token;
     }
 
     /// <summary>
-    /// Determines whether the specified object is equal to the current revision token.
+    /// Gets the entity that owns the revision.
     /// </summary>
-    /// <param name="obj">The object to compare with the current revision token.</param>
-    /// <returns><see langword="true"/> when the specified object is an equal <see cref="EntityRevision"/>; otherwise, <see langword="false"/>.</returns>
-    public override bool Equals(object? obj)
-    {
-        return obj is EntityRevision other && Equals(other);
-    }
+    /// <value>The entity that owns the revision.</value>
+    public EntityId EntityId { get; }
 
     /// <summary>
-    /// Returns a hash code for the current revision token.
+    /// Gets the opaque token that identifies the revision.
     /// </summary>
-    /// <returns>A hash code for the current revision token.</returns>
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(_entityId, _revision);
-    }
+    /// <value>The opaque token that identifies the revision.</value>
+    public Guid Token { get; }
 
     /// <summary>
-    /// Returns a string representation of the current revision token.
+    /// Creates a new revision token for the specified entity.
     /// </summary>
-    /// <returns>A string representation of the current revision token.</returns>
-    public override string ToString()
+    /// <param name="entityId">The entity that owns the revision.</param>
+    /// <returns>A newly generated entity revision token.</returns>
+    public static EntityRevision GenerateNew(EntityId entityId)
     {
-        return $"EntityRevision({_entityId}, {_revision})";
+        return new EntityRevision(entityId, Guid.CreateVersion7());
     }
 }

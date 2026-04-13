@@ -15,39 +15,39 @@
 
 当前源码树中已经有明确实现的区域包括：
 
-- `src/managed/Kawayi.Wakaze.Abstractions`
+- `src/Kawayi.Wakaze.Abstractions`
     - 提供 schema / typed-object 相关抽象，例如 `SchemaId`、`SchemaFamily`、`ISchemaDefinition*`、`ISchemaProjector`、
       `ITypedObject`
-- `src/managed/Kawayi.Wakaze.Digest`
+- `src/Kawayi.Wakaze.Digest`
     - 提供 `Blake3` 摘要值类型与值语义
-- `src/managed/Kawayi.Wakaze.Cas.Abstractions`
+- `src/Kawayi.Wakaze.Cas.Abstractions`
     - 提供 CAS 公共模型与接口，例如 `BlobId`、`BlobRange`、`ReadRequest`、`PutResult`、`BlobStat`、`ICas*`
-- `src/managed/Kawayi.Wakaze.Cas.Local`
+- `src/Kawayi.Wakaze.Cas.Local`
     - 提供基于本地文件系统的 CAS 实现
-- `src/managed/Kawayi.Wakaze.Db.Abstractions`
+- `src/Kawayi.Wakaze.Db.Abstractions`
     - 提供数据库描述、连接、健康检查、维护、转储 / 恢复等抽象
-- `src/managed/Kawayi.Wakaze.Db.PostgreSql`
+- `src/Kawayi.Wakaze.Db.PostgreSql`
     - 提供 PostgreSQL provider、数据库对象和 DI 扩展
-- `src/managed/Kawayi.Wakaze.Entity.Abstractions`
-    - 提供实体、实体引用、修订、读写上下文和实体存储抽象
-- `src/managed/Kawayi.Wakaze.Entity.Sqlite`
+- `src/Kawayi.Wakaze.Entity.Abstractions`
+    - 提供实体 current visible state、逻辑引用、修订、快照、历史访问、原子读写上下文和实体存储抽象
+- `src/Kawayi.Wakaze.Entity.Sqlite`
     - 提供基于 SQLite / EF Core 的实体存储实现
-- `src/managed/Kawayi.Wakaze.Semantics.Abstractions`
+- `src/Kawayi.Wakaze.Semantics.Abstractions`
     - 提供语义读取、投影、提交、索引和会话相关抽象
-- `src/managed/Kawayi.Wakaze.IO`
+- `src/Kawayi.Wakaze.IO`
     - 提供目录树复制、递归删除、仓库根定位等共享文件系统工具
-- `src/managed/Kawayi.Wakaze.Process`
+- `src/Kawayi.Wakaze.Process`
     - 提供子进程启动、输出捕获和退出码处理等共享进程工具
-- `src/managed/Kawayi.Wakaze.Analyzer`
+- `src/Kawayi.Wakaze.Analyzer`
     - 提供 Roslyn Analyzer
-- `src/managed/Kawayi.Wakaze.Generator`
+- `src/Kawayi.Wakaze.Generator`
     - 提供 Roslyn Source Generator
-- `src/managed/Kawayi.Wakaze.Cli`
+- `src/Kawayi.Wakaze.Cli`
     - 当前存在可构建 CLI 入口，但实现仍然非常轻，当前行为仅输出 `Hello, World!`
 
 当前接近占位区的主要是：
 
-- `src/managed/Kawayi.Wakaze.Core`
+- `src/Kawayi.Wakaze.Core`
     - 目前只有项目骨架和依赖，尚无实际源码成员
 
 不要再把 `Kawayi.Wakaze.Abstractions` 视为“基本为空”；它已经是当前 schema 抽象的重要组成部分。
@@ -62,7 +62,7 @@
 - 本地文件系统 blob 布局、临时文件提交、范围读取等细节属于 `Kawayi.Wakaze.Cas.Local`
 - 数据库无关的 provider / connection / dump / restore / maintenance 抽象属于 `Kawayi.Wakaze.Db.Abstractions`
 - PostgreSQL 特定连接串、工具调用和依赖注入扩展属于 `Kawayi.Wakaze.Db.PostgreSql`
-- 实体模型与实体存储抽象属于 `Kawayi.Wakaze.Entity.Abstractions`
+- 实体 current visible state、revision、逻辑引用、快照、历史读取和实体存储抽象属于 `Kawayi.Wakaze.Entity.Abstractions`
 - SQLite / EF Core 持久化细节属于 `Kawayi.Wakaze.Entity.Sqlite`
 - 语义层通用抽象属于 `Kawayi.Wakaze.Semantics.Abstractions`
 - 与具体领域无关的文件系统工具属于 `Kawayi.Wakaze.IO`

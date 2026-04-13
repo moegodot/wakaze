@@ -149,13 +149,6 @@
         "dependencies": {
           "Kawayi.Wakaze.Abstractions": "[1.0.0, )"
         }
-      },
-      "kawayi.wakaze.semantics.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "Kawayi.Wakaze.Abstractions": "[1.0.0, )",
-          "Kawayi.Wakaze.Entity.Abstractions": "[1.0.0, )"
-        }
       }
     }
   }
