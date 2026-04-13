@@ -10,7 +10,10 @@
 - `eng/scripts/runManagedTests`
     - 聚合发现 `tests/` 下的 `*.Tests.csproj`
     - 会先对 `Wakaze.slnx` 执行一次 solution 级 `dotnet restore` 和 `dotnet build`
-    - 然后对每个已构建的测试程序集使用 `dotnet exec` 逐个运行
+    - `dotnet build` 会把 MSBuild 并行度设置为 `max(1, cpu_count / 3)`
+    - 然后对每个已构建的测试程序集使用 `dotnet exec` 运行，最多同时保活 3 个测试进程
+    - 每个测试进程的 `--maximum-parallel-tests` 固定为 `max(1, cpu_count / 3)`
+    - 会劫持 `dotnet build` 和 `dotnet exec` 输出；成功时丢弃，失败时回放到当前 stdout
     - 必须显式提供 `--configuration <Debug|Release>`
     - 会在固定前置参数之后把 `--` 之后的测试程序参数透传给每个 managed 测试程序集
 - `eng/scripts/newManagedProject`

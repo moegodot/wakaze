@@ -9,7 +9,10 @@
 - 测试程序参数必须放在 `--` 之后
 - `eng/scripts/runManagedTests` 只聚合 `tests` 下的测试项目
 - `eng/scripts/runManagedTests` 要求显式提供 `--configuration <Debug|Release>`
-- `eng/scripts/runManagedTests` 会先对 `Wakaze.slnx` 执行 solution 级 `restore/build`，再对每个已构建测试程序集使用 `dotnet exec`
+- `eng/scripts/runManagedTests` 会先对 `Wakaze.slnx` 执行 solution 级 `restore/build`
+- `eng/scripts/runManagedTests` 会以最多 3 个并发 `dotnet exec` 进程运行已构建测试程序集
+- 每个测试进程的 `--maximum-parallel-tests` 固定为 `max(1, cpu_count / 3)`
+- `eng/scripts/runManagedTests` 会劫持 `dotnet build` 和 `dotnet exec` 输出；成功时丢弃，失败时回放到当前 stdout
 
 ## 当前测试项目
 
@@ -45,6 +48,7 @@
 - `dotnet run --file eng/scripts/runManagedTests -- --configuration Debug` 在当前工作区可通过，并覆盖 `tests` 下全部 10 个测试项目
 - `--treenode-filter` 在当前仓库可工作
 - `eng/scripts/runManagedTests` 的耗时汇总只统计每个测试程序集的 `dotnet exec` 执行时间，不统计前置的 solution 级 `restore/build`
+- `eng/scripts/runManagedTests` 在测试阶段最多同时运行 3 个 `dotnet exec` 进程
 - 通过 `eng/scripts/runManagedTests` 传入筛选参数时，未命中的测试项目按跳过处理，不会把整个聚合运行标记为失败
 - PostgreSQL 测试当前可通过，因为工作区中已经存在 `vendors/install/postgresql`
 - `tests/Kawayi.Wakaze.Db.PostgreSql.Tests` 包含 provider 行为测试和 PostgreSQL 安装 / 生命周期测试

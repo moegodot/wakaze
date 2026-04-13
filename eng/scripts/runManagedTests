@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 using Kawayi.Wakaze.IO;
 using Kawayi.Wakaze.Process;
 
+const int MaxConcurrentProcesses = 3;
+
 return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] rawArguments)
@@ -49,8 +51,10 @@ static async Task<int> RunAsync(string[] rawArguments)
         var solutionPath = Path.Combine(repositoryRoot, "Wakaze.slnx");
         var hasTestSelectionArguments = HasTestSelectionArguments(parsedArguments.ForwardedArguments);
         var labelWidth = testProjects.Max(static project => project.DisplayName.Length);
+        var perProcessParallelism = Math.Max(1, Environment.ProcessorCount / MaxConcurrentProcesses);
 
         WriteSection($"Restore and build solution ({configuration})");
+        WriteExecutionSettings(perProcessParallelism);
 
         WritePhase("restore", "Wakaze.slnx", labelWidth, configuration, Path.GetFileName(solutionPath));
         var restoreResult = await RunProcessAsync(
@@ -66,10 +70,12 @@ static async Task<int> RunAsync(string[] rawArguments)
         WritePhase("build", "Wakaze.slnx", labelWidth, configuration, Path.GetFileName(solutionPath));
         var buildResult = await RunProcessAsync(
             repositoryRoot,
-            CreateBuildArguments(solutionPath, configuration),
-            environmentVariables: null);
+            CreateBuildArguments(solutionPath, configuration, perProcessParallelism),
+            environmentVariables: null,
+            captureOutput: true);
         if (buildResult.ExitCode != 0)
         {
+            WriteCapturedOutputToStdout(buildResult);
             WriteError($"Build failed for {Path.GetFileName(solutionPath)} (exit code {buildResult.ExitCode}).");
             return 1;
         }
@@ -84,42 +90,50 @@ static async Task<int> RunAsync(string[] rawArguments)
 
         var runSummaries = new List<TestRunSummary>(runnableProjects.Length);
         var failedProjects = new List<string>();
+        var remainingProjects = new Queue<RunnableTestProject>(runnableProjects);
+        var activeRuns = new List<Task<TestExecutionResult>>(Math.Min(MaxConcurrentProcesses, runnableProjects.Length));
 
-        foreach (var runnableProject in runnableProjects)
+        while (remainingProjects.Count > 0 || activeRuns.Count > 0)
         {
-            var relativePath = Path.GetRelativePath(repositoryRoot, runnableProject.Project.ProjectPath);
-            WritePhase("test", runnableProject.Project.DisplayName, labelWidth, configuration, relativePath);
-
-            var stopwatch = Stopwatch.StartNew();
-            var result = await RunProcessAsync(
-                repositoryRoot,
-                CreateTestExecutionArguments(runnableProject.AssemblyPath, parsedArguments.ForwardedArguments),
-                CreateTestEnvironmentVariables());
-            stopwatch.Stop();
-
-            var status = result.ExitCode switch
+            while (remainingProjects.Count > 0 && activeRuns.Count < MaxConcurrentProcesses)
             {
-                0 => TestRunStatus.Passed,
-                8 when hasTestSelectionArguments => TestRunStatus.Skipped,
-                _ => TestRunStatus.Failed
-            };
+                var runnableProject = remainingProjects.Dequeue();
+                var relativePath = Path.GetRelativePath(repositoryRoot, runnableProject.Project.ProjectPath);
+                WritePhase("test", runnableProject.Project.DisplayName, labelWidth, configuration, relativePath);
+                activeRuns.Add(RunTestProjectAsync(
+                    runnableProject,
+                    repositoryRoot,
+                    parsedArguments.ForwardedArguments,
+                    hasTestSelectionArguments,
+                    perProcessParallelism));
+            }
 
+            var completedRunTask = await Task.WhenAny(activeRuns);
+            activeRuns.Remove(completedRunTask);
+
+            var completedRun = await completedRunTask;
             runSummaries.Add(new TestRunSummary(
-                runnableProject.Project.DisplayName,
-                status,
-                stopwatch.Elapsed));
+                completedRun.Project.DisplayName,
+                completedRun.Status,
+                completedRun.Elapsed));
 
-            switch (status)
+            switch (completedRun.Status)
             {
                 case TestRunStatus.Passed:
-                    WriteStatusLine("passed", Ansi.Success, runnableProject.Project.DisplayName, labelWidth, stopwatch.Elapsed);
+                    WriteStatusLine("passed", Ansi.Success, completedRun.Project.DisplayName, labelWidth, completedRun.Elapsed);
                     break;
                 case TestRunStatus.Skipped:
-                    WriteStatusLine("skipped", Ansi.Warning, runnableProject.Project.DisplayName, labelWidth, stopwatch.Elapsed);
+                    WriteStatusLine("skipped", Ansi.Warning, completedRun.Project.DisplayName, labelWidth, completedRun.Elapsed);
                     break;
                 default:
-                    WriteStatusLine($"failed ({result.ExitCode})", Ansi.Error, runnableProject.Project.DisplayName, labelWidth, stopwatch.Elapsed);
-                    failedProjects.Add(relativePath);
+                    WriteCapturedOutputToStdout(completedRun.ProcessResult);
+                    WriteStatusLine(
+                        $"failed ({completedRun.ProcessResult.ExitCode})",
+                        Ansi.Error,
+                        completedRun.Project.DisplayName,
+                        labelWidth,
+                        completedRun.Elapsed);
+                    failedProjects.Add(Path.GetRelativePath(repositoryRoot, completedRun.Project.ProjectPath));
                     break;
             }
         }
@@ -236,7 +250,7 @@ static IReadOnlyList<string> CreateRestoreArguments(string solutionPath)
     ];
 }
 
-static IReadOnlyList<string> CreateBuildArguments(string solutionPath, string configuration)
+static IReadOnlyList<string> CreateBuildArguments(string solutionPath, string configuration, int maxCpuCount)
 {
     return
     [
@@ -244,6 +258,7 @@ static IReadOnlyList<string> CreateBuildArguments(string solutionPath, string co
         solutionPath,
         "--nologo",
         "--no-restore",
+        $"-m:{maxCpuCount}",
         "--configuration",
         configuration
     ];
@@ -251,7 +266,8 @@ static IReadOnlyList<string> CreateBuildArguments(string solutionPath, string co
 
 static IReadOnlyList<string> CreateTestExecutionArguments(
     string assemblyPath,
-    IEnumerable<string> forwardedArguments)
+    IEnumerable<string> forwardedArguments,
+    int maximumParallelTests)
 {
     var arguments = new List<string>
     {
@@ -262,7 +278,7 @@ static IReadOnlyList<string> CreateTestExecutionArguments(
         "--output",
         "Normal",
         "--maximum-parallel-tests",
-        Environment.ProcessorCount.ToString()
+        maximumParallelTests.ToString()
     };
 
     foreach (var argument in forwardedArguments)
@@ -287,16 +303,49 @@ static IReadOnlyDictionary<string, string?> CreateTestEnvironmentVariables()
 static async Task<ProcessCommandResult> RunProcessAsync(
     string workingDirectory,
     IReadOnlyList<string> arguments,
-    IReadOnlyDictionary<string, string?>? environmentVariables)
+    IReadOnlyDictionary<string, string?>? environmentVariables,
+    bool captureOutput = false)
 {
     return await ProcessCommandRunner.RunAsync(
         new ProcessCommandRequest(
             "dotnet",
             arguments,
             workingDirectory,
-            CaptureOutput: false,
+            CaptureOutput: captureOutput,
             EnvironmentVariables: environmentVariables,
             ThrowOnNonZeroExit: false));
+}
+
+static async Task<TestExecutionResult> RunTestProjectAsync(
+    RunnableTestProject runnableProject,
+    string repositoryRoot,
+    IReadOnlyList<string> forwardedArguments,
+    bool hasTestSelectionArguments,
+    int maximumParallelTests)
+{
+    var stopwatch = Stopwatch.StartNew();
+    var result = await RunProcessAsync(
+        repositoryRoot,
+        CreateTestExecutionArguments(
+            runnableProject.AssemblyPath,
+            forwardedArguments,
+            maximumParallelTests),
+        CreateTestEnvironmentVariables(),
+        captureOutput: true);
+    stopwatch.Stop();
+
+    var status = result.ExitCode switch
+    {
+        0 => TestRunStatus.Passed,
+        8 when hasTestSelectionArguments => TestRunStatus.Skipped,
+        _ => TestRunStatus.Failed
+    };
+
+    return new TestExecutionResult(
+        runnableProject.Project,
+        status,
+        stopwatch.Elapsed,
+        result);
 }
 
 static string ResolveBuiltAssemblyPath(string testProject, string projectName, string configuration)
@@ -380,6 +429,13 @@ static void WriteSection(string title)
     Console.WriteLine($"{Ansi.Accent}== {title} =={Ansi.Reset}");
 }
 
+static void WriteExecutionSettings(int perProcessParallelism)
+{
+    Console.WriteLine(
+        $"{Ansi.Dim}Using up to {MaxConcurrentProcesses} concurrent process(es); " +
+        $"per-process parallelism is {perProcessParallelism}.{Ansi.Reset}");
+}
+
 static void WritePhase(
     string phase,
     string displayName,
@@ -459,6 +515,27 @@ static string FormatDuration(TimeSpan elapsed)
     return elapsed.ToString(@"hh\:mm\:ss\.fff");
 }
 
+static void WriteCapturedOutputToStdout(ProcessCommandResult result)
+{
+    if (!string.IsNullOrEmpty(result.StandardOutput))
+    {
+        Console.Out.Write(result.StandardOutput);
+        if (!result.StandardOutput.EndsWith('\n'))
+        {
+            Console.Out.WriteLine();
+        }
+    }
+
+    if (!string.IsNullOrEmpty(result.StandardError))
+    {
+        Console.Out.Write(result.StandardError);
+        if (!result.StandardError.EndsWith('\n'))
+        {
+            Console.Out.WriteLine();
+        }
+    }
+}
+
 static string GetScriptPath([CallerFilePath] string path = "")
 {
     return path;
@@ -507,6 +584,12 @@ sealed record TestRunSummary(
     string DisplayName,
     TestRunStatus Status,
     TimeSpan Elapsed);
+
+sealed record TestExecutionResult(
+    TestProject Project,
+    TestRunStatus Status,
+    TimeSpan Elapsed,
+    ProcessCommandResult ProcessResult);
 
 enum TestRunStatus
 {
