@@ -21,76 +21,76 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
     private const string GeneratedNamespace = "Kawayi.Wakaze.Generated";
 
     internal static readonly DiagnosticDescriptor RegisterSchemaMustImplementSchemaDefinition = new(
-        id: "WG0001",
-        title: "RegisterSchema type must implement ISchemaDefinition",
-        messageFormat: "Type '{0}' is marked with RegisterSchemaAttribute but does not implement ISchemaDefinition<TFamily, TScheme>",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0001",
+        "RegisterSchema type must implement ISchemaDefinition",
+        "Type '{0}' is marked with RegisterSchemaAttribute but does not implement ISchemaDefinition<TFamily, TScheme>",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToMethodMustBeOnRegisteredSchema = new(
-        id: "WG0002",
-        title: "ProjectTo method must be declared on a registered schema",
-        messageFormat: "Method '{0}' is marked with ProjectToAttribute but its containing type is not marked with RegisterSchemaAttribute",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0002",
+        "ProjectTo method must be declared on a registered schema",
+        "Method '{0}' is marked with ProjectToAttribute but its containing type is not marked with RegisterSchemaAttribute",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToTargetMustImplementSchemaDefinition = new(
-        id: "WG0003",
-        title: "ProjectTo target must implement ISchemaDefinition",
-        messageFormat: "ProjectTo target type '{0}' does not implement ISchemaDefinition<TFamily, TScheme>",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0003",
+        "ProjectTo target must implement ISchemaDefinition",
+        "ProjectTo target type '{0}' does not implement ISchemaDefinition<TFamily, TScheme>",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToMethodMustBeStatic = new(
-        id: "WG0004",
-        title: "ProjectTo method must be static",
-        messageFormat: "ProjectTo method '{0}' must be static",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0004",
+        "ProjectTo method must be static",
+        "ProjectTo method '{0}' must be static",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToMethodMustHaveOneParameter = new(
-        id: "WG0005",
-        title: "ProjectTo method must have exactly one parameter",
-        messageFormat: "ProjectTo method '{0}' must declare exactly one parameter",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0005",
+        "ProjectTo method must have exactly one parameter",
+        "ProjectTo method '{0}' must declare exactly one parameter",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToMethodMustNotReturnVoid = new(
-        id: "WG0006",
-        title: "ProjectTo method must return a projected object",
-        messageFormat: "ProjectTo method '{0}' must not return void",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0006",
+        "ProjectTo method must return a projected object",
+        "ProjectTo method '{0}' must not return void",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToParameterMustImplementTypedObject = new(
-        id: "WG0007",
-        title: "ProjectTo parameter must implement ITypedObject",
-        messageFormat: "ProjectTo method '{0}' parameter type '{1}' must implement ITypedObject",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0007",
+        "ProjectTo parameter must implement ITypedObject",
+        "ProjectTo method '{0}' parameter type '{1}' must implement ITypedObject",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToReturnTypeMustImplementTypedObject = new(
-        id: "WG0008",
-        title: "ProjectTo return type must implement ITypedObject",
-        messageFormat: "ProjectTo method '{0}' return type '{1}' must implement ITypedObject",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0008",
+        "ProjectTo return type must implement ITypedObject",
+        "ProjectTo method '{0}' return type '{1}' must implement ITypedObject",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     internal static readonly DiagnosticDescriptor ProjectToMethodMustBeAccessible = new(
-        id: "WG0009",
-        title: "ProjectTo method must be accessible",
-        messageFormat: "ProjectTo method '{0}' must be public, internal, or protected internal to be callable from generated registration code",
-        category: Category,
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        "WG0009",
+        "ProjectTo method must be accessible",
+        "ProjectTo method '{0}' must be public, internal, or protected internal to be callable from generated registration code",
+        Category,
+        DiagnosticSeverity.Error,
+        true);
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -128,10 +128,7 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
         var schemaDefinitionInterface = compilation.GetTypeByMetadataName(SchemaDefinitionMetadataName);
         var typedObjectInterface = compilation.GetTypeByMetadataName(TypedObjectMetadataName);
 
-        if (schemaDefinitionInterface is null || typedObjectInterface is null)
-        {
-            return;
-        }
+        if (schemaDefinitionInterface is null || typedObjectInterface is null) return;
 
         var distinctSchemaCandidates = schemaCandidates
             .Distinct(SymbolEqualityComparer.Default)
@@ -142,10 +139,12 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
             .Cast<IMethodSymbol>()
             .ToImmutableArray();
 
-        var registerSchemaTypes = new HashSet<INamedTypeSymbol>(distinctSchemaCandidates, SymbolEqualityComparer.Default);
+        var registerSchemaTypes =
+            new HashSet<INamedTypeSymbol>(distinctSchemaCandidates, SymbolEqualityComparer.Default);
         var validSchemas = new Dictionary<INamedTypeSymbol, SchemaDefinitionModel>(SymbolEqualityComparer.Default);
 
-        foreach (var schemaType in distinctSchemaCandidates.OrderBy(static symbol => symbol.ToDisplayString(), StringComparer.Ordinal))
+        foreach (var schemaType in distinctSchemaCandidates.OrderBy(static symbol => symbol.ToDisplayString(),
+                     StringComparer.Ordinal))
         {
             if (!TryGetSchemaDefinitionImplementation(schemaType, schemaDefinitionInterface, out var schemaInterface))
             {
@@ -164,7 +163,8 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
 
         var validProjectors = new List<ProjectorModel>();
 
-        foreach (var projectorMethod in distinctProjectorCandidates.OrderBy(static symbol => symbol.ToDisplayString(), StringComparer.Ordinal))
+        foreach (var projectorMethod in distinctProjectorCandidates.OrderBy(static symbol => symbol.ToDisplayString(),
+                     StringComparer.Ordinal))
         {
             if (!registerSchemaTypes.Contains(projectorMethod.ContainingType))
             {
@@ -175,14 +175,12 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (!validSchemas.TryGetValue(projectorMethod.ContainingType, out var sourceSchema))
-            {
-                continue;
-            }
+            if (!validSchemas.TryGetValue(projectorMethod.ContainingType, out var sourceSchema)) continue;
 
             if (!TryGetProjectToTarget(projectorMethod, out var targetSchemaType) ||
                 targetSchemaType is null ||
-                !TryGetSchemaDefinitionImplementation(targetSchemaType, schemaDefinitionInterface, out var targetSchemaInterface))
+                !TryGetSchemaDefinitionImplementation(targetSchemaType, schemaDefinitionInterface,
+                    out var targetSchemaInterface))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     ProjectToTargetMustImplementSchemaDefinition,
@@ -222,7 +220,8 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     ProjectToParameterMustImplementTypedObject,
-                    projectorMethod.Parameters[0].Locations.FirstOrDefault() ?? projectorMethod.Locations.FirstOrDefault(),
+                    projectorMethod.Parameters[0].Locations.FirstOrDefault() ??
+                    projectorMethod.Locations.FirstOrDefault(),
                     projectorMethod.ToDisplayString(),
                     projectorMethod.Parameters[0].Type.ToDisplayString()));
                 continue;
@@ -256,15 +255,14 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
                     (INamedTypeSymbol)targetSchemaInterface.TypeArguments[1])));
         }
 
-        if (validSchemas.Count == 0)
-        {
-            return;
-        }
+        if (validSchemas.Count == 0) return;
 
         var source = GenerateRegistrarSource(
-            assemblyName: compilation.AssemblyName ?? "Generated",
-            schemas: validSchemas.Values.OrderBy(static item => item.SchemaType.ToDisplayString(), StringComparer.Ordinal).ToImmutableArray(),
-            projectors: validProjectors.OrderBy(static item => item.Method.ToDisplayString(), StringComparer.Ordinal).ToImmutableArray());
+            compilation.AssemblyName ?? "Generated",
+            validSchemas.Values.OrderBy(static item => item.SchemaType.ToDisplayString(), StringComparer.Ordinal)
+                .ToImmutableArray(),
+            validProjectors.OrderBy(static item => item.Method.ToDisplayString(), StringComparer.Ordinal)
+                .ToImmutableArray());
 
         var hintName = SanitizeIdentifier(compilation.AssemblyName ?? "Generated") + ".SchemaRegistration.g.cs";
         context.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
@@ -278,14 +276,12 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
         implementation = null!;
 
         foreach (var candidate in type.AllInterfaces)
-        {
             if (candidate.IsGenericType &&
                 SymbolEqualityComparer.Default.Equals(candidate.OriginalDefinition, schemaDefinitionInterface))
             {
                 implementation = candidate;
                 return true;
             }
-        }
 
         return false;
     }
@@ -296,15 +292,9 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
 
         foreach (var attribute in method.GetAttributes())
         {
-            if (attribute.AttributeClass?.ToDisplayString() != ProjectToAttributeMetadataName)
-            {
-                continue;
-            }
+            if (attribute.AttributeClass?.ToDisplayString() != ProjectToAttributeMetadataName) continue;
 
-            if (attribute.ConstructorArguments.Length != 1)
-            {
-                return false;
-            }
+            if (attribute.ConstructorArguments.Length != 1) return false;
 
             targetSchemaType = attribute.ConstructorArguments[0].Value as INamedTypeSymbol;
             return targetSchemaType is not null;
@@ -317,17 +307,11 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
     {
         if (type is INamedTypeSymbol namedType &&
             SymbolEqualityComparer.Default.Equals(namedType, interfaceType))
-        {
             return true;
-        }
 
         foreach (var candidate in type.AllInterfaces)
-        {
             if (SymbolEqualityComparer.Default.Equals(candidate, interfaceType))
-            {
                 return true;
-            }
-        }
 
         return false;
     }
@@ -368,30 +352,20 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
         builder.AppendLine("    {");
 
         foreach (var schema in schemas)
-        {
             builder.Append("        projector.RegisterSchema<")
                 .Append(GetTypeName(schema.SchemaType)).Append(", ")
                 .Append(GetTypeName(schema.FamilyType)).Append(", ")
                 .Append(GetTypeName(schema.SchemeType)).AppendLine(">();");
-        }
 
-        if (schemas.Length != 0 && projectors.Length != 0)
-        {
-            builder.AppendLine();
-        }
+        if (schemas.Length != 0 && projectors.Length != 0) builder.AppendLine();
 
         foreach (var schema in schemas)
-        {
             builder.Append("        compatibility.Register<")
                 .Append(GetTypeName(schema.SchemaType)).Append(", ")
                 .Append(GetTypeName(schema.FamilyType)).Append(", ")
                 .Append(GetTypeName(schema.SchemeType)).AppendLine(">();");
-        }
 
-        if (schemas.Length != 0 && projectors.Length != 0)
-        {
-            builder.AppendLine();
-        }
+        if (schemas.Length != 0 && projectors.Length != 0) builder.AppendLine();
 
         for (var index = 0; index < projectors.Length; index++)
         {
@@ -438,22 +412,12 @@ public sealed class SchemaRegistrationGenerator : IIncrementalGenerator
         var builder = new StringBuilder(value.Length);
 
         foreach (var character in value)
-        {
             if (char.IsLetterOrDigit(character) || character == '_')
-            {
                 builder.Append(character);
-            }
-        }
 
-        if (builder.Length == 0)
-        {
-            builder.Append("Generated");
-        }
+        if (builder.Length == 0) builder.Append("Generated");
 
-        if (!char.IsLetter(builder[0]) && builder[0] != '_')
-        {
-            builder.Insert(0, '_');
-        }
+        if (!char.IsLetter(builder[0]) && builder[0] != '_') builder.Insert(0, '_');
 
         return builder.ToString();
     }

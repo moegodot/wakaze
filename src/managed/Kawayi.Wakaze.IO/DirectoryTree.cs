@@ -17,9 +17,7 @@ public static class DirectoryTree
 
         var source = new DirectoryInfo(sourceDirectory);
         if (!source.Exists)
-        {
             throw new DirectoryNotFoundException($"The source directory '{sourceDirectory}' was not found.");
-        }
 
         CopyCore(source, destinationDirectory);
     }
@@ -32,10 +30,7 @@ public static class DirectoryTree
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath);
 
-        if (Directory.Exists(directoryPath))
-        {
-            Directory.Delete(directoryPath, recursive: true);
-        }
+        if (Directory.Exists(directoryPath)) Directory.Delete(directoryPath, true);
     }
 
     private static void CopyCore(DirectoryInfo sourceDirectory, string destinationDirectory)
@@ -79,10 +74,7 @@ public static class DirectoryTree
 
     private static void CopyUnixModeIfSupported(string sourcePath, string destinationPath)
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        if (OperatingSystem.IsWindows()) return;
 
         File.SetUnixFileMode(destinationPath, File.GetUnixFileMode(sourcePath));
     }

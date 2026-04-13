@@ -17,7 +17,7 @@ public sealed class RepositoryRootLocatorTests
     public async Task FindContainingDirectory_ResolvesFromDirectoryPath()
     {
         var startDirectory = Path.GetDirectoryName(GetSourcePath())
-            ?? throw new InvalidOperationException("Unable to resolve the test directory.");
+                             ?? throw new InvalidOperationException("Unable to resolve the test directory.");
 
         var result = RepositoryRootLocator.FindContainingDirectory(startDirectory, "wakaze.root");
 

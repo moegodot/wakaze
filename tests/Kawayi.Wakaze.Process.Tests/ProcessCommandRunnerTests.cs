@@ -8,11 +8,11 @@ public sealed class ProcessCommandRunnerTests
     public async Task RunAsync_ReturnsExitCodeForSuccessfulCommand()
     {
         using var script = await TemporaryFileScript.CreateAsync("""
-            Console.WriteLine("ok");
-            """);
+                                                                 Console.WriteLine("ok");
+                                                                 """);
 
         var result = await ProcessCommandRunner.RunAsync(
-            script.CreateRequest(captureOutput: true, throwOnNonZeroExit: true));
+            script.CreateRequest(true, true));
 
         await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(result.StandardOutput.Contains("ok", StringComparison.Ordinal)).IsTrue();
@@ -22,12 +22,12 @@ public sealed class ProcessCommandRunnerTests
     public async Task RunAsync_CapturesStandardOutputAndError()
     {
         using var script = await TemporaryFileScript.CreateAsync("""
-            Console.WriteLine("stdout-line");
-            Console.Error.WriteLine("stderr-line");
-            """);
+                                                                 Console.WriteLine("stdout-line");
+                                                                 Console.Error.WriteLine("stderr-line");
+                                                                 """);
 
         var result = await ProcessCommandRunner.RunAsync(
-            script.CreateRequest(captureOutput: true, throwOnNonZeroExit: true));
+            script.CreateRequest(true, true));
 
         await Assert.That(result.StandardOutput.Contains("stdout-line", StringComparison.Ordinal)).IsTrue();
         await Assert.That(result.StandardError.Contains("stderr-line", StringComparison.Ordinal)).IsTrue();
@@ -37,10 +37,10 @@ public sealed class ProcessCommandRunnerTests
     public async Task RunAsync_AppliesEnvironmentVariableOverrides()
     {
         using var script = await TemporaryFileScript.CreateAsync("""
-            Console.WriteLine(Environment.GetEnvironmentVariable("WAKAZE_PROCESS_TEST") ?? "<null>");
-            """);
+                                                                 Console.WriteLine(Environment.GetEnvironmentVariable("WAKAZE_PROCESS_TEST") ?? "<null>");
+                                                                 """);
 
-        var request = script.CreateRequest(captureOutput: true, throwOnNonZeroExit: true) with
+        var request = script.CreateRequest(true, true) with
         {
             EnvironmentVariables = new Dictionary<string, string?>(StringComparer.Ordinal)
             {
@@ -57,13 +57,13 @@ public sealed class ProcessCommandRunnerTests
     public async Task RunAsync_RemovesEnvironmentVariables()
     {
         using var script = await TemporaryFileScript.CreateAsync("""
-            Console.WriteLine(Environment.GetEnvironmentVariable("WAKAZE_PROCESS_TEST") ?? "<null>");
-            """);
+                                                                 Console.WriteLine(Environment.GetEnvironmentVariable("WAKAZE_PROCESS_TEST") ?? "<null>");
+                                                                 """);
 
         Environment.SetEnvironmentVariable("WAKAZE_PROCESS_TEST", "ambient");
         try
         {
-            var request = script.CreateRequest(captureOutput: true, throwOnNonZeroExit: true) with
+            var request = script.CreateRequest(true, true) with
             {
                 EnvironmentVariables = new Dictionary<string, string?>(StringComparer.Ordinal)
                 {
@@ -85,13 +85,13 @@ public sealed class ProcessCommandRunnerTests
     public async Task RunAsync_ReturnsResultForNonZeroExitWhenThrowOnNonZeroExitIsFalse()
     {
         using var script = await TemporaryFileScript.CreateAsync("""
-            Console.WriteLine("stdout-fail");
-            Console.Error.WriteLine("stderr-fail");
-            return 7;
-            """);
+                                                                 Console.WriteLine("stdout-fail");
+                                                                 Console.Error.WriteLine("stderr-fail");
+                                                                 return 7;
+                                                                 """);
 
         var result = await ProcessCommandRunner.RunAsync(
-            script.CreateRequest(captureOutput: true, throwOnNonZeroExit: false));
+            script.CreateRequest(true, false));
 
         await Assert.That(result.ExitCode).IsEqualTo(7);
         await Assert.That(result.StandardOutput.Contains("stdout-fail", StringComparison.Ordinal)).IsTrue();
@@ -102,13 +102,13 @@ public sealed class ProcessCommandRunnerTests
     public async Task RunAsync_ThrowsForNonZeroExitWhenThrowOnNonZeroExitIsTrue()
     {
         using var script = await TemporaryFileScript.CreateAsync("""
-            Console.WriteLine("stdout-fail");
-            Console.Error.WriteLine("stderr-fail");
-            return 9;
-            """);
+                                                                 Console.WriteLine("stdout-fail");
+                                                                 Console.Error.WriteLine("stderr-fail");
+                                                                 return 9;
+                                                                 """);
 
         await Assert.That(async () => await ProcessCommandRunner.RunAsync(
-                script.CreateRequest(captureOutput: false, throwOnNonZeroExit: true)))
+                script.CreateRequest(false, true)))
             .Throws<InvalidOperationException>();
     }
 
@@ -125,10 +125,10 @@ public sealed class ProcessCommandRunnerTests
         {
             var scriptPath = Path.Combine(Path.GetTempPath(), $"wakaze-process-tests-{Guid.NewGuid():N}.cs");
             var contents = $$"""
-                #!/usr/bin/env dotnet
+                             #!/usr/bin/env dotnet
 
-                {{body}}
-                """;
+                             {{body}}
+                             """;
             await File.WriteAllTextAsync(scriptPath, contents);
             return new TemporaryFileScript(scriptPath);
         }
@@ -146,10 +146,7 @@ public sealed class ProcessCommandRunnerTests
 
         public void Dispose()
         {
-            if (File.Exists(ScriptPath))
-            {
-                File.Delete(ScriptPath);
-            }
+            if (File.Exists(ScriptPath)) File.Delete(ScriptPath);
         }
     }
 }

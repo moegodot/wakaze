@@ -57,10 +57,7 @@ internal sealed class TempFileLease : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        if (_committed)
-        {
-            return ValueTask.CompletedTask;
-        }
+        if (_committed) return ValueTask.CompletedTask;
 
         try
         {

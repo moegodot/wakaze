@@ -11,7 +11,8 @@ namespace Kawayi.Wakaze.Cas.Abstractions;
 /// <see cref="Digest.Blake3.ToString(string?, IFormatProvider?)"/>, for example
 /// <c>id.ToString("RX", null)</c>.
 /// </remarks>
-public readonly struct BlobId : IEquatable<BlobId>, IComparable<BlobId>, ISpanFormattable, IUtf8SpanFormattable, IParsable<BlobId>,
+public readonly struct BlobId : IEquatable<BlobId>, IComparable<BlobId>, ISpanFormattable, IUtf8SpanFormattable,
+    IParsable<BlobId>,
     IUtf8SpanParsable<BlobId>
 {
     private const int DigestHexLength = 64;

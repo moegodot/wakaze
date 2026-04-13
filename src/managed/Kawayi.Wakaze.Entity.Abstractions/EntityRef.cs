@@ -1,4 +1,3 @@
-
 namespace Kawayi.Wakaze.Entity.Abstractions;
 
 /// <summary>
@@ -20,10 +19,7 @@ public readonly record struct EntityRef(EntityId Target, RefKind Kind) : ICompar
     public int CompareTo(EntityRef other)
     {
         var l = Target.Id.CompareTo(other.Target.Id);
-        if (l == 0)
-        {
-            return Kind.CompareTo(other.Kind);
-        }
+        if (l == 0) return Kind.CompareTo(other.Kind);
         return l;
     }
 }

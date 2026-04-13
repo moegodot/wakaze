@@ -47,14 +47,9 @@ public sealed class SqliteEntityStoreOptions
         var hasDatabasePath = !string.IsNullOrWhiteSpace(clone.DatabasePath);
 
         if (hasConnectionString == hasDatabasePath)
-        {
             throw new InvalidOperationException("Configure exactly one of ConnectionString or DatabasePath.");
-        }
 
-        if (hasDatabasePath)
-        {
-            clone.DatabasePath = Path.GetFullPath(clone.DatabasePath!);
-        }
+        if (hasDatabasePath) clone.DatabasePath = Path.GetFullPath(clone.DatabasePath!);
 
         return clone;
     }
@@ -87,15 +82,9 @@ public sealed class SqliteEntityStoreOptions
     internal void EnsureDatabaseDirectory()
     {
         var validated = CloneValidated();
-        if (string.IsNullOrWhiteSpace(validated.DatabasePath) || !validated.EnsureDatabaseDirectoryExists)
-        {
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(validated.DatabasePath) || !validated.EnsureDatabaseDirectoryExists) return;
 
         var directory = Path.GetDirectoryName(validated.DatabasePath);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
     }
 }

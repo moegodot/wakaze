@@ -1,3 +1,5 @@
+using Kawayi.Wakaze.Abstractions.Schema;
+
 namespace Kawayi.Wakaze.Abstractions;
 
 /// <summary>

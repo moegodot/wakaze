@@ -31,17 +31,16 @@ public sealed class TestPostgreSqlDatabaseScope : IAsyncInitializer, IAsyncDispo
 
     public string CurrentUser => Environment.UserName;
 
-    private TestPostgreSqlInstallation SharedInstallation => _sharedInstallation ?? throw CreateNotInitializedException();
+    private TestPostgreSqlInstallation SharedInstallation =>
+        _sharedInstallation ?? throw CreateNotInitializedException();
 
     public async Task InitializeAsync()
     {
         var repositoryRoot = RepositoryRootLocator.FindContainingDirectory(GetSourcePath(), "wakaze.root");
         var sourceInstallDirectory = Path.Combine(repositoryRoot, "vendors", "install", "postgresql");
         if (!Directory.Exists(sourceInstallDirectory))
-        {
             throw new InvalidOperationException(
                 $"PostgreSQL install directory was not found at '{sourceInstallDirectory}'.");
-        }
 
         var sharedInstallation = await TestPostgreSqlInstallation.CreateAsync(sourceInstallDirectory, "provider-scope");
         await sharedInstallation.InitializeDatabaseAsync();
@@ -70,7 +69,8 @@ public sealed class TestPostgreSqlDatabaseScope : IAsyncInitializer, IAsyncDispo
             null);
     }
 
-    public async ValueTask<IDatabase> CreateDatabaseAsync(string databaseName, CancellationToken cancellationToken = default)
+    public async ValueTask<IDatabase> CreateDatabaseAsync(string databaseName,
+        CancellationToken cancellationToken = default)
     {
         return await Provider.CreateAsync(
             new DatabaseProvisioningRequest(
@@ -93,7 +93,8 @@ public sealed class TestPostgreSqlDatabaseScope : IAsyncInitializer, IAsyncDispo
         }
     }
 
-    public async Task<T?> ExecuteScalarAsync<T>(IDatabase database, string sql, CancellationToken cancellationToken = default)
+    public async Task<T?> ExecuteScalarAsync<T>(IDatabase database, string sql,
+        CancellationToken cancellationToken = default)
     {
         await using var connection = await database.OpenConnectionAsync(cancellationToken: cancellationToken);
         await using var command = connection.CreateCommand();
@@ -111,7 +112,7 @@ public sealed class TestPostgreSqlDatabaseScope : IAsyncInitializer, IAsyncDispo
     {
         var result = await installation.RunInstalledCaptureAsync(
             "psql",
-            CreatePsqlArguments(installation.SocketDirectory, databaseName, sql, userName, captureScalar: true),
+            CreatePsqlArguments(installation.SocketDirectory, databaseName, sql, userName, true),
             cancellationToken);
         return result.StandardOutput.Trim();
     }
@@ -125,7 +126,7 @@ public sealed class TestPostgreSqlDatabaseScope : IAsyncInitializer, IAsyncDispo
     {
         return installation.RunInstalledAsync(
             "psql",
-            CreatePsqlArguments(installation.SocketDirectory, databaseName, sql, userName, captureScalar: false),
+            CreatePsqlArguments(installation.SocketDirectory, databaseName, sql, userName, false),
             cancellationToken);
     }
 
@@ -136,25 +137,16 @@ public sealed class TestPostgreSqlDatabaseScope : IAsyncInitializer, IAsyncDispo
         CancellationToken cancellationToken = default)
     {
         var installation = await TestPostgreSqlInstallation.CreateAsync(SourceInstallDirectory, scenarioName);
-        if (initializeDatabase)
-        {
-            await installation.InitializeDatabaseAsync(cancellationToken);
-        }
+        if (initializeDatabase) await installation.InitializeDatabaseAsync(cancellationToken);
 
-        if (startServer)
-        {
-            await installation.StartServerAsync(cancellationToken);
-        }
+        if (startServer) await installation.StartServerAsync(cancellationToken);
 
         return installation;
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_sharedInstallation is not null)
-        {
-            await _sharedInstallation.DisposeAsync();
-        }
+        if (_sharedInstallation is not null) await _sharedInstallation.DisposeAsync();
     }
 
     private static IReadOnlyList<string> CreatePsqlArguments(
@@ -243,9 +235,8 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(scenarioName);
 
         if (!Directory.Exists(sourceInstallDirectory))
-        {
-            throw new InvalidOperationException($"PostgreSQL install directory was not found at '{sourceInstallDirectory}'.");
-        }
+            throw new InvalidOperationException(
+                $"PostgreSQL install directory was not found at '{sourceInstallDirectory}'.");
 
         var temporaryBaseDirectory = OperatingSystem.IsMacOS() ? "/tmp" : Path.GetTempPath();
         var rootDirectory = Path.Combine(
@@ -270,10 +261,7 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
 
     public async Task InitializeDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        if (IsInitialized)
-        {
-            return;
-        }
+        if (IsInitialized) return;
 
         await RunInstalledAsync(
             "initdb",
@@ -284,21 +272,20 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
 
     public async Task StartServerAsync(CancellationToken cancellationToken = default)
     {
-        if (IsRunning)
-        {
-            return;
-        }
+        if (IsRunning) return;
 
         if (!IsInitialized)
-        {
-            throw new InvalidOperationException("The PostgreSQL data directory must be initialized before the server starts.");
-        }
+            throw new InvalidOperationException(
+                "The PostgreSQL data directory must be initialized before the server starts.");
 
         try
         {
             await RunInstalledAsync(
                 "pg_ctl",
-                ["-D", DataDirectory, "-l", LogFilePath, "-o", $"-c listen_addresses='' -k {QuoteCommandValue(SocketDirectory)}", "-w", "start"],
+                [
+                    "-D", DataDirectory, "-l", LogFilePath, "-o",
+                    $"-c listen_addresses='' -k {QuoteCommandValue(SocketDirectory)}", "-w", "start"
+                ],
                 cancellationToken);
         }
         catch (Exception ex)
@@ -316,10 +303,7 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
 
     public async Task StopServerAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsRunning)
-        {
-            return;
-        }
+        if (!IsRunning) return;
 
         await RunInstalledAsync("pg_ctl", ["-D", DataDirectory, "-w", "stop", "-m", "fast"], cancellationToken);
         IsRunning = false;
@@ -335,9 +319,9 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
                 GetInstalledToolPath(toolName),
                 arguments,
                 RootDirectory,
-                CaptureOutput: false,
-                EnvironmentVariables: null,
-                ThrowOnNonZeroExit: true),
+                false,
+                null,
+                true),
             cancellationToken);
     }
 
@@ -351,9 +335,9 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
                 GetInstalledToolPath(toolName),
                 arguments,
                 RootDirectory,
-                CaptureOutput: true,
-                EnvironmentVariables: null,
-                ThrowOnNonZeroExit: true),
+                true,
+                null,
+                true),
             cancellationToken);
     }
 
@@ -362,9 +346,7 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
         var fileName = OperatingSystem.IsWindows() ? $"{toolName}.exe" : toolName;
         var path = Path.Combine(ToolBinaryDirectory, fileName);
         if (!File.Exists(path))
-        {
             throw new InvalidOperationException($"Required PostgreSQL tool was not found at '{path}'.");
-        }
 
         return path;
     }
@@ -381,10 +363,7 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
 
         try
         {
-            if (Directory.Exists(RootDirectory))
-            {
-                DirectoryTree.DeleteIfExists(RootDirectory);
-            }
+            if (Directory.Exists(RootDirectory)) DirectoryTree.DeleteIfExists(RootDirectory);
         }
         catch
         {
@@ -393,7 +372,8 @@ public sealed class TestPostgreSqlInstallation : IAsyncDisposable
 
     private static string QuoteCommandValue(string value)
     {
-        return $"\"{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
+        return
+            $"\"{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\"";
     }
 
     private static string SanitizeScenarioName(string scenarioName)

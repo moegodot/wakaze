@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Kawayi.Wakaze.Entity.Abstractions;
 
 namespace Kawayi.Wakaze.Semantics.Abstractions;
@@ -33,21 +34,15 @@ public readonly struct SemanticEdge : IEquatable<SemanticEdge>
         int ordinal)
     {
         if (sourceRevision.EntityId != sourceEntityId)
-        {
             throw new ArgumentException(
                 "The source revision must belong to the source entity.",
                 nameof(sourceRevision));
-        }
 
         if (string.IsNullOrWhiteSpace(relationKey))
-        {
             throw new ArgumentException("The relation key cannot be empty.", nameof(relationKey));
-        }
 
         if (ordinal < 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(ordinal), ordinal, "The ordinal cannot be negative.");
-        }
 
         SourceEntityId = sourceEntityId;
         SourceRevision = sourceRevision;

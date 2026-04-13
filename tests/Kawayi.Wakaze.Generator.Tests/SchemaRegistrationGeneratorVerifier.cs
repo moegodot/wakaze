@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -7,18 +8,20 @@ namespace Kawayi.Wakaze.Generator.Tests;
 internal static class SchemaRegistrationGeneratorVerifier
 {
     private const string CommonUsings = """
-        using System;
-        using System.Collections.Generic;
-        """;
+                                        using System;
+                                        using System.Collections.Generic;
+                                        """;
 
     public static VerificationResult Run(string source)
     {
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp13);
         var compilation = CreateCompilation(CommonUsings + Environment.NewLine + source, parseOptions);
         var generator = new SchemaRegistrationGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create([generator.AsSourceGenerator()], parseOptions: parseOptions);
+        GeneratorDriver driver =
+            CSharpGeneratorDriver.Create([generator.AsSourceGenerator()], parseOptions: parseOptions);
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var driverDiagnostics);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation,
+            out var driverDiagnostics);
         var runResult = driver.GetRunResult();
         var diagnostics = runResult.Results.Single().Diagnostics
             .OrderBy(static diagnostic => diagnostic.Id, StringComparer.Ordinal)
@@ -40,21 +43,23 @@ internal static class SchemaRegistrationGeneratorVerifier
         var references = GetMetadataReferences();
 
         return CSharpCompilation.Create(
-            assemblyName: "Kawayi.Wakaze.Generator.Tests.Input",
-            syntaxTrees: [syntaxTree],
-            references: references,
-            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            "Kawayi.Wakaze.Generator.Tests.Input",
+            [syntaxTree],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
     }
 
     private static ImmutableArray<MetadataReference> GetMetadataReferences()
     {
         var trustedPlatformAssemblies = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))
-            ?.Split(Path.PathSeparator)
-            .Select(static path => MetadataReference.CreateFromFile(path))
-            .ToList()
-            ?? throw new InvalidOperationException("Trusted platform assemblies were not available.");
+                                        ?.Split(Path.PathSeparator)
+                                        .Select(static path => MetadataReference.CreateFromFile(path))
+                                        .ToList()
+                                        ?? throw new InvalidOperationException(
+                                            "Trusted platform assemblies were not available.");
 
-        trustedPlatformAssemblies.Add(MetadataReference.CreateFromFile(typeof(Kawayi.Wakaze.Abstractions.RegisterSchemaAttribute).Assembly.Location));
+        trustedPlatformAssemblies.Add(
+            MetadataReference.CreateFromFile(typeof(RegisterSchemaAttribute).Assembly.Location));
         return trustedPlatformAssemblies.Cast<MetadataReference>().ToImmutableArray();
     }
 }
@@ -87,8 +92,6 @@ internal sealed record VerificationResult(
         var combined = string.Join(Environment.NewLine, GeneratedSources);
 
         foreach (var fragment in fragments)
-        {
             await Assert.That(combined.Contains(fragment, StringComparison.Ordinal)).IsTrue();
-        }
     }
 }

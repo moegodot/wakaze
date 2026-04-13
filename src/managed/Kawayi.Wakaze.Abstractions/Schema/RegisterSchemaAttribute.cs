@@ -1,4 +1,4 @@
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 /// <summary>
 /// Marks a schema definition type for source-generated runtime registration.

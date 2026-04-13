@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Db.Abstractions;
 

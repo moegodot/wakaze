@@ -234,7 +234,7 @@ public sealed class FileSystemCas : ICas, ICasAdmin
             || pathSegments[0].Length != 2
             || pathSegments[1].Length != 2
             || pathSegments[2].Length != 64
-            || !Kawayi.Wakaze.Digest.Blake3.TryParse(pathSegments[2], null, out var digest)
+            || !Digest.Blake3.TryParse(pathSegments[2], null, out var digest)
             || !pathSegments[2].StartsWith(pathSegments[0], StringComparison.OrdinalIgnoreCase)
             || !pathSegments[2].AsSpan(2, 2).Equals(pathSegments[1], StringComparison.OrdinalIgnoreCase))
         {

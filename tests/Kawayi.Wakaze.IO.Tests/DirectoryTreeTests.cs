@@ -24,10 +24,7 @@ public sealed class DirectoryTreeTests
     [Test]
     public async Task Copy_PreservesSymbolicLinks()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        if (OperatingSystem.IsWindows()) return;
 
         using var scope = new TemporaryDirectoryScope();
         var source = Path.Combine(scope.RootPath, "source");
@@ -45,10 +42,7 @@ public sealed class DirectoryTreeTests
     [Test]
     public async Task Copy_PreservesUnixFileMode()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
+        if (OperatingSystem.IsWindows()) return;
 
         using var scope = new TemporaryDirectoryScope();
         var source = Path.Combine(scope.RootPath, "source");

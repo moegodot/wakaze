@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Kawayi.Wakaze.Entity.Abstractions;
 
 namespace Kawayi.Wakaze.Semantics.Abstractions;
@@ -33,26 +34,18 @@ public readonly struct SemanticProperty : IEquatable<SemanticProperty>
         int ordinal)
     {
         if (revision.EntityId != entityId)
-        {
             throw new ArgumentException(
                 "The revision must belong to the entity.",
                 nameof(revision));
-        }
 
         if (string.IsNullOrWhiteSpace(propertyKey))
-        {
             throw new ArgumentException("The property key cannot be empty.", nameof(propertyKey));
-        }
 
         if (string.IsNullOrWhiteSpace(canonicalValue))
-        {
             throw new ArgumentException("The canonical value cannot be empty.", nameof(canonicalValue));
-        }
 
         if (ordinal < 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(ordinal), ordinal, "The ordinal cannot be negative.");
-        }
 
         EntityId = entityId;
         Revision = revision;

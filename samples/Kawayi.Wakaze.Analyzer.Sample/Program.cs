@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 var validFamily = new SchemaFamily("semantic://wakaze.dev/tag");
 var invalidFamily = new SchemaFamily("semantic://wakaze.dev");

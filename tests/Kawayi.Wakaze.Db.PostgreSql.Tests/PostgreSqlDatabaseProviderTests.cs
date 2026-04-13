@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Kawayi.Wakaze.Db.Abstractions;
 using Kawayi.Wakaze.IO;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,10 +23,7 @@ public class PostgreSqlDatabaseProviderIntegrationTests
                 Scope.CreateEndpoint("resolve_target"),
                 Connection: Scope.CreateAdminConnection()));
 
-        if (resolved is null)
-        {
-            throw new Exception("Expected the endpoint to resolve.");
-        }
+        if (resolved is null) throw new Exception("Expected the endpoint to resolve.");
 
         await using (resolved)
         {
@@ -38,12 +36,15 @@ public class PostgreSqlDatabaseProviderIntegrationTests
     [Test]
     public async Task TryResolveAsync_ReturnsNullWhenProviderOrEngineDoNotMatch()
     {
-        var otherSchema = new SchemaId<DatabaseScheme>("database://wakaze.dev/other/v1");
+        var otherSchema1 = new SchemaId<DatabaseScheme>("database://wakaze.dev/other/v1");
+        var otherSchema2 = new SchemaId<DatabaseProviderScheme>("database-provider://wakaze.dev/other/v1");
 
         var providerMismatch = await Scope.Provider.TryResolveAsync(
-            new DatabaseResolutionRequest(Scope.CreateEndpoint("provider_mismatch"), ProviderId: otherSchema));
+            new DatabaseResolutionRequest(Scope.CreateEndpoint("provider_mismatch"),
+                otherSchema2));
         var engineMismatch = await Scope.Provider.TryResolveAsync(
-            new DatabaseResolutionRequest(Scope.CreateEndpoint("engine_mismatch"), Engine: otherSchema));
+            new DatabaseResolutionRequest(Scope.CreateEndpoint("engine_mismatch"),
+                Engine: otherSchema1));
 
         await Assert.That(providerMismatch).IsNull();
         await Assert.That(engineMismatch).IsNull();
@@ -92,7 +93,8 @@ public class PostgreSqlDatabaseProviderIntegrationTests
         await Assert.That(builder.Username).IsEqualTo("override_user");
         await Assert.That(builder.Password).IsEqualTo("secret");
         await Assert.That(builder.ApplicationName).IsEqualTo("wakaze-tests");
-        await Assert.That(connectionString.Contains("default_transaction_read_only=on", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(connectionString.Contains("default_transaction_read_only=on", StringComparison.Ordinal))
+            .IsTrue();
     }
 
     [Test]

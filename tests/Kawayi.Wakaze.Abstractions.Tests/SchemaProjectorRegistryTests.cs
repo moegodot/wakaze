@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Abstractions.Tests;
 
@@ -11,8 +12,8 @@ public class SchemaProjectorRegistryTests
         var sourceSchema = TagV2Schema.Schema;
         var targetSchema = TagV1Schema.Schema;
 
-        registry.Register<TagV2Schema, TagFamily, SemanticScheme, TagV1Schema, TagFamily, SemanticScheme>(
-            source => new FakeTypedObject(targetSchema, $"{((FakeTypedObject)source).Value}:v1"));
+        registry.Register<TagV2Schema, TagFamily, SemanticScheme, TagV1Schema, TagFamily, SemanticScheme>(source =>
+            new FakeTypedObject(targetSchema, $"{((FakeTypedObject)source).Value}:v1"));
 
         var source = new FakeTypedObject(sourceSchema, "tag");
         var result = registry.TryProject(source, targetSchema, out var projected);
@@ -30,10 +31,10 @@ public class SchemaProjectorRegistryTests
         var v2 = TagV2Schema.Schema;
         var v1 = TagV1Schema.Schema;
 
-        registry.Register<TagV3Schema, TagFamily, SemanticScheme, TagV2Schema, TagFamily, SemanticScheme>(
-            source => new FakeTypedObject(v2, $"{((FakeTypedObject)source).Value}:v2"));
-        registry.Register<TagV2Schema, TagFamily, SemanticScheme, TagV1Schema, TagFamily, SemanticScheme>(
-            source => new FakeTypedObject(v1, $"{((FakeTypedObject)source).Value}:v1"));
+        registry.Register<TagV3Schema, TagFamily, SemanticScheme, TagV2Schema, TagFamily, SemanticScheme>(source =>
+            new FakeTypedObject(v2, $"{((FakeTypedObject)source).Value}:v2"));
+        registry.Register<TagV2Schema, TagFamily, SemanticScheme, TagV1Schema, TagFamily, SemanticScheme>(source =>
+            new FakeTypedObject(v1, $"{((FakeTypedObject)source).Value}:v1"));
 
         var result = registry.TryProject(new FakeTypedObject(v3, "tag"), v1, out var projected);
 
@@ -73,7 +74,8 @@ public class SchemaProjectorRegistryTests
 
         registry.RegisterSchema<TagV1Schema, TagFamily, SemanticScheme>();
 
-        AssertThrows<ArgumentException>(() => registry.Register(TagV1Schema.Schema, TagV2Schema.Schema, value => value));
+        AssertThrows<ArgumentException>(() =>
+            registry.Register(TagV1Schema.Schema, TagV2Schema.Schema, value => value));
     }
 
     private static void AssertThrows<TException>(Action action)

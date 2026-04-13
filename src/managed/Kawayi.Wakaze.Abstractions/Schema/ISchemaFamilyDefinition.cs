@@ -1,4 +1,4 @@
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 /// <summary>
 /// Defines a schema family within a scheme category.

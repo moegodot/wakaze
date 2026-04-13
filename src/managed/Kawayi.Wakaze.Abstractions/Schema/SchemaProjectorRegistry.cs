@@ -1,4 +1,4 @@
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 /// <summary>
 /// Stores explicitly registered schema projectors and resolves chained projections transitively.
@@ -27,10 +27,7 @@ public sealed class SchemaProjectorRegistry : ISchemaProjector
         EnsureSameFamily(source, target);
         EnsureDeclaredProjectableTarget(source, target);
 
-        if (source == target)
-        {
-            return;
-        }
+        if (source == target) return;
 
         if (!_edges.TryGetValue(source, out var targets))
         {
@@ -54,10 +51,7 @@ public sealed class SchemaProjectorRegistry : ISchemaProjector
     {
         var targets = new HashSet<SchemaId>(TSchema.ProjectableTargets);
 
-        foreach (var target in targets)
-        {
-            EnsureSameFamily(TSchema.Schema, target);
-        }
+        foreach (var target in targets) EnsureSameFamily(TSchema.Schema, target);
 
         _declaredProjectableTargets[TSchema.Schema] = targets;
     }
@@ -88,15 +82,9 @@ public sealed class SchemaProjectorRegistry : ISchemaProjector
     /// <inheritdoc />
     public bool CanProject(SchemaId source, SchemaId target)
     {
-        if (source == target)
-        {
-            return true;
-        }
+        if (source == target) return true;
 
-        if (source.Family != target.Family)
-        {
-            return false;
-        }
+        if (source.Family != target.Family) return false;
 
         return SchemaGraphSearch.TryFindPath(
             source,
@@ -134,17 +122,15 @@ public sealed class SchemaProjectorRegistry : ISchemaProjector
 
         var path = BuildPath(source.SchemaId, target, previous);
 
-        ITypedObject current = source;
+        var current = source;
         foreach (var edge in path)
         {
             var next = edge.Projector(current) ??
                        throw new InvalidOperationException("A registered schema projector returned null.");
 
             if (next.SchemaId != edge.Target)
-            {
                 throw new InvalidOperationException(
                     $"A registered schema projector declared target '{edge.Target}' but returned '{next.SchemaId}'.");
-            }
 
             current = next;
         }
@@ -176,23 +162,16 @@ public sealed class SchemaProjectorRegistry : ISchemaProjector
     private static void EnsureSameFamily(SchemaId source, SchemaId target)
     {
         if (source.Family != target.Family)
-        {
             throw new ArgumentException("Projection edges must stay within the same schema family.");
-        }
     }
 
     private void EnsureDeclaredProjectableTarget(SchemaId source, SchemaId target)
     {
-        if (!_declaredProjectableTargets.TryGetValue(source, out var declaredTargets))
-        {
-            return;
-        }
+        if (!_declaredProjectableTargets.TryGetValue(source, out var declaredTargets)) return;
 
         if (!declaredTargets.Contains(target))
-        {
             throw new ArgumentException(
                 $"Projection target '{target}' is not declared in the source schema metadata for '{source}'.",
                 nameof(target));
-        }
     }
 }

@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Abstractions.Tests;
 
@@ -11,9 +12,9 @@ public class SchemaFamilyTests
         var nested = new SchemaFamily("semantic://wakaze.dev/semantic/tag");
         var database = new SchemaFamily("database://wakaze.dev/postgresql");
 
-        await Assert.That(semantic.Value).IsEqualTo(new Uri("semantic://wakaze.dev/tag"));
-        await Assert.That(nested.Value).IsEqualTo(new Uri("semantic://wakaze.dev/semantic/tag"));
-        await Assert.That(database.Value).IsEqualTo(new Uri("database://wakaze.dev/postgresql"));
+        await Assert.That(semantic.ToUri()).IsEqualTo(new Uri("semantic://wakaze.dev/tag"));
+        await Assert.That(nested.ToUri()).IsEqualTo(new Uri("semantic://wakaze.dev/semantic/tag"));
+        await Assert.That(database.ToUri()).IsEqualTo(new Uri("database://wakaze.dev/postgresql"));
         await Assert.That(database.ToString()).IsEqualTo("database://wakaze.dev/postgresql");
     }
 
@@ -66,7 +67,7 @@ public class SchemaFamilyTests
     [Test]
     public async Task TryParse_Returns_ParsedValue_For_ValidFamilyUri()
     {
-        var result = SchemaFamily.TryParse("database://wakaze.dev/postgresql", out var typeUri);
+        var result = SchemaFamily.TryParse("database://wakaze.dev/postgresql", null, out var typeUri);
 
         await Assert.That(result).IsTrue();
         await Assert.That(typeUri).IsEqualTo(new SchemaFamily("database://wakaze.dev/postgresql"));
@@ -75,8 +76,8 @@ public class SchemaFamilyTests
     [Test]
     public async Task TryParse_Returns_False_For_InvalidValue()
     {
-        var result = SchemaFamily.TryParse("semantic://wakaze.dev", out _);
-        var nullResult = SchemaFamily.TryParse(null, out _);
+        var result = SchemaFamily.TryParse("semantic://wakaze.dev", null, out _);
+        var nullResult = SchemaFamily.TryParse(null, null, out _);
 
         await Assert.That(result).IsFalse();
         await Assert.That(nullResult).IsFalse();

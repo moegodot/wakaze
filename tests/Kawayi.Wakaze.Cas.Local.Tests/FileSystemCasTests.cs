@@ -205,10 +205,7 @@ public class FileSystemCasTests
         }
 
         var scanned = await CollectAsync(admin.ScanBlobIdsAsync());
-        if (!scanned.SetEquals(expected))
-        {
-            throw new Exception("Scanned blob ids did not match the stored blob ids.");
-        }
+        if (!scanned.SetEquals(expected)) throw new Exception("Scanned blob ids did not match the stored blob ids.");
     }
 
     [Test]
@@ -235,9 +232,7 @@ public class FileSystemCasTests
 
         var scanned = await CollectAsync(admin.ScanBlobIdsAsync());
         if (!scanned.SetEquals([putResult.Id]))
-        {
             throw new Exception("Scan returned blob ids for temp files or malformed entries.");
-        }
     }
 
     private static BlobId CreateBlobId(byte seed)
@@ -268,10 +263,7 @@ public class FileSystemCasTests
     {
         var result = new HashSet<BlobId>();
 
-        await foreach (var item in source)
-        {
-            result.Add(item);
-        }
+        await foreach (var item in source) result.Add(item);
 
         return result;
     }

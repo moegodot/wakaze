@@ -1,4 +1,4 @@
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 /// <summary>
 /// Projects typed objects into other compatible schemas.

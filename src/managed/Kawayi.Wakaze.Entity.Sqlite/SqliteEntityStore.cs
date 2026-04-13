@@ -38,7 +38,8 @@ public sealed class SqliteEntityStore : IEntityStore
         CancellationToken cancellationToken = default)
     {
         await using var scope = await _infrastructure.OpenReadScopeAsync(cancellationToken);
-        return await SqliteEntityStoreOperations.GetAsync(scope.Context, scope.Identity, id, options, cancellationToken);
+        return await SqliteEntityStoreOperations.GetAsync(scope.Context, scope.Identity, id, options,
+            cancellationToken);
     }
 
     /// <summary>
@@ -84,9 +85,7 @@ public sealed class SqliteEntityStore : IEntityStore
         await foreach (var entity in SqliteEntityStoreOperations
                            .GetReferrersAsync(scope.Context, target, cancellationToken)
                            .WithCancellation(cancellationToken))
-        {
             yield return entity;
-        }
     }
 
     /// <summary>
@@ -135,9 +134,7 @@ public sealed class SqliteEntityStore : IEntityStore
         await foreach (var revision in SqliteEntityStoreOperations
                            .ListRevisionsAsync(scope.Context, scope.Identity, id, cancellationToken)
                            .WithCancellation(cancellationToken))
-        {
             yield return revision;
-        }
     }
 
     /// <summary>
@@ -195,10 +192,7 @@ public sealed class SqliteEntityStore : IEntityStore
         return ExecuteAsync(
             async (context, ct) =>
             {
-                foreach (var entity in entities)
-                {
-                    await context.PutAsync(entity, ct);
-                }
+                foreach (var entity in entities) await context.PutAsync(entity, ct);
             },
             cancellationToken);
     }

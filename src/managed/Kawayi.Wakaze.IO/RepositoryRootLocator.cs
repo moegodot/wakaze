@@ -20,17 +20,12 @@ public static class RepositoryRootLocator
 
         while (true)
         {
-            if (File.Exists(Path.Combine(currentDirectory, markerFileName)))
-            {
-                return currentDirectory;
-            }
+            if (File.Exists(Path.Combine(currentDirectory, markerFileName))) return currentDirectory;
 
             var parentDirectory = Directory.GetParent(currentDirectory);
             if (parentDirectory is null)
-            {
                 throw new InvalidOperationException(
                     $"Unable to locate '{markerFileName}' starting from '{startPath}'.");
-            }
 
             currentDirectory = parentDirectory.FullName;
         }
@@ -40,16 +35,11 @@ public static class RepositoryRootLocator
     {
         var fullPath = Path.GetFullPath(startPath);
 
-        if (Directory.Exists(fullPath))
-        {
-            return fullPath;
-        }
+        if (Directory.Exists(fullPath)) return fullPath;
 
         var containingDirectory = Path.GetDirectoryName(fullPath);
         if (containingDirectory is null)
-        {
             throw new InvalidOperationException("Unable to resolve the starting directory.");
-        }
 
         return containingDirectory;
     }

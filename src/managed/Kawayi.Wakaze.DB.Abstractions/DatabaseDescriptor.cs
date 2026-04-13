@@ -1,11 +1,12 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Db.Abstractions;
 
 /// <summary>
 /// Captures the stable description of a database resource.
 /// </summary>
-/// <param name="ProviderId">The exact <c>database://</c> schema identifier used to access the resource.</param>
+/// <param name="ProviderId">The exact <c>database-provider://</c> schema identifier used to access the resource.</param>
 /// <param name="Engine">The exact <c>database://</c> schema identifier for the engine exposed by the resource.</param>
 /// <param name="Location">
 /// The location model for the resource. Opaque locations carry a versioned provider-specific document.
@@ -13,7 +14,7 @@ namespace Kawayi.Wakaze.Db.Abstractions;
 /// <param name="DisplayName">A human-readable label for diagnostics and UI.</param>
 /// <param name="Capabilities">Optional capabilities exposed by the resource or provider.</param>
 public sealed record DatabaseDescriptor(
-    SchemaId<DatabaseScheme> ProviderId,
+    SchemaId<DatabaseProviderScheme> ProviderId,
     SchemaId<DatabaseScheme> Engine,
     DatabaseLocation Location,
     string DisplayName,

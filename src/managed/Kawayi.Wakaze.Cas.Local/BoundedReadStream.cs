@@ -12,15 +12,9 @@ internal sealed class BoundedReadStream : Stream
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentOutOfRangeException.ThrowIfNegative(length);
 
-        if (!inner.CanRead)
-        {
-            throw new ArgumentException("The inner stream must be readable.", nameof(inner));
-        }
+        if (!inner.CanRead) throw new ArgumentException("The inner stream must be readable.", nameof(inner));
 
-        if (!inner.CanSeek)
-        {
-            throw new ArgumentException("The inner stream must support seeking.", nameof(inner));
-        }
+        if (!inner.CanSeek) throw new ArgumentException("The inner stream must support seeking.", nameof(inner));
 
         _inner = inner;
         _length = length;
@@ -53,10 +47,7 @@ internal sealed class BoundedReadStream : Stream
     public override int Read(Span<byte> buffer)
     {
         var available = GetRemainingCount(buffer.Length);
-        if (available == 0)
-        {
-            return 0;
-        }
+        if (available == 0) return 0;
 
         var read = _inner.Read(buffer[..available]);
         _position += read;
@@ -68,10 +59,7 @@ internal sealed class BoundedReadStream : Stream
         CancellationToken cancellationToken = default)
     {
         var available = GetRemainingCount(buffer.Length);
-        if (available == 0)
-        {
-            return ValueTask.FromResult(0);
-        }
+        if (available == 0) return ValueTask.FromResult(0);
 
         return ReadCoreAsync(buffer[..available], cancellationToken);
     }
@@ -95,10 +83,7 @@ internal sealed class BoundedReadStream : Stream
             _ => throw new ArgumentOutOfRangeException(nameof(origin))
         };
 
-        if (target < 0 || target > _length)
-        {
-            throw new IOException("Attempted to seek outside the bounded range.");
-        }
+        if (target < 0 || target > _length) throw new IOException("Attempted to seek outside the bounded range.");
 
         _inner.Seek(_start + target, SeekOrigin.Begin);
         _position = target;
@@ -127,10 +112,7 @@ internal sealed class BoundedReadStream : Stream
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            _inner.Dispose();
-        }
+        if (disposing) _inner.Dispose();
 
         base.Dispose(disposing);
     }
@@ -138,10 +120,7 @@ internal sealed class BoundedReadStream : Stream
     private int GetRemainingCount(int requestedCount)
     {
         var remaining = _length - _position;
-        if (remaining <= 0)
-        {
-            return 0;
-        }
+        if (remaining <= 0) return 0;
 
         return (int)Math.Min(remaining, requestedCount);
     }

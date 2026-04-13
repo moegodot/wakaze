@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Abstractions.Tests;
 
@@ -43,7 +44,7 @@ public class SchemaIdTests
     [Test]
     public async Task TryParse_Returns_ParsedValue_For_ValidSchemaUri()
     {
-        var result = SchemaId.TryParse("semantic://wakaze.dev/tag/v2", out var schema);
+        var result = SchemaId.TryParse("semantic://wakaze.dev/tag/v2", null, out var schema);
 
         await Assert.That(result).IsTrue();
         await Assert.That(schema).IsEqualTo(new SchemaId("semantic://wakaze.dev/tag/v2"));
@@ -52,8 +53,8 @@ public class SchemaIdTests
     [Test]
     public async Task TryParse_Returns_False_For_InvalidValue()
     {
-        var result = SchemaId.TryParse("semantic://wakaze.dev/tag", out _);
-        var nullResult = SchemaId.TryParse(null, out _);
+        var result = SchemaId.TryParse("semantic://wakaze.dev/tag", null, out _);
+        var nullResult = SchemaId.TryParse(null, null, out _);
 
         await Assert.That(result).IsFalse();
         await Assert.That(nullResult).IsFalse();

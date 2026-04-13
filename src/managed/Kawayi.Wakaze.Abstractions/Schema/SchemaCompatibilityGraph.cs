@@ -1,4 +1,4 @@
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 /// <summary>
 /// Stores explicitly registered schema compatibility edges and resolves them transitively.
@@ -19,10 +19,7 @@ public sealed class SchemaCompatibilityGraph : ISchemaCompatibility
     {
         EnsureSameFamily(source, target);
 
-        if (source == target)
-        {
-            return;
-        }
+        if (source == target) return;
 
         if (!_edges.TryGetValue(source, out var targets))
         {
@@ -44,24 +41,15 @@ public sealed class SchemaCompatibilityGraph : ISchemaCompatibility
         where TFamily : ISchemaFamilyDefinition<TScheme>
         where TScheme : ISchemaUriSchemeDefinition
     {
-        foreach (var target in TSchema.CompatibleTargets)
-        {
-            Register(TSchema.Schema, target);
-        }
+        foreach (var target in TSchema.CompatibleTargets) Register(TSchema.Schema, target);
     }
 
     /// <inheritdoc />
     public bool CanReadAs(SchemaId source, SchemaId target)
     {
-        if (source == target)
-        {
-            return true;
-        }
+        if (source == target) return true;
 
-        if (source.Family != target.Family)
-        {
-            return false;
-        }
+        if (source.Family != target.Family) return false;
 
         return SchemaGraphSearch.TryFindPath(
             source,
@@ -73,8 +61,6 @@ public sealed class SchemaCompatibilityGraph : ISchemaCompatibility
     private static void EnsureSameFamily(SchemaId source, SchemaId target)
     {
         if (source.Family != target.Family)
-        {
             throw new ArgumentException("Compatibility edges must stay within the same schema family.");
-        }
     }
 }

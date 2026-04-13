@@ -1,9 +1,11 @@
-namespace Kawayi.Wakaze.Abstractions;
+using System.Diagnostics.CodeAnalysis;
+
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 /// <summary>
 /// Represents a positive schema version number.
 /// </summary>
-public readonly struct SchemaVersion : IEquatable<SchemaVersion>, IComparable<SchemaVersion>
+public readonly struct SchemaVersion : IEquatable<SchemaVersion>, IComparable<SchemaVersion>, IParsable<SchemaVersion>
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SchemaVersion"/> struct.
@@ -15,9 +17,7 @@ public readonly struct SchemaVersion : IEquatable<SchemaVersion>, IComparable<Sc
     public SchemaVersion(uint value)
     {
         if (value == 0)
-        {
             throw new ArgumentOutOfRangeException(nameof(value), value, "The schema version must be positive.");
-        }
 
         Value = value;
     }
@@ -121,40 +121,21 @@ public readonly struct SchemaVersion : IEquatable<SchemaVersion>, IComparable<Sc
         return left.Value > right.Value;
     }
 
-    internal static bool TryParseSegment(string value, out SchemaVersion version)
+    public static SchemaVersion Parse(string s, IFormatProvider? provider)
     {
-        version = default;
+        return new SchemaVersion(uint.Parse(s, provider));
+    }
 
-        if (value.Length < 2 || value[0] != 'v')
+    public static bool TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider,
+        [MaybeNullWhen(false)] out SchemaVersion result)
+    {
+        if (uint.TryParse(s, provider, out var ver))
         {
-            return false;
+            result = new SchemaVersion(ver);
+            return true;
         }
 
-        var digits = value.AsSpan(1);
-        if (digits.Length == 0)
-        {
-            return false;
-        }
-
-        foreach (var digit in digits)
-        {
-            if (!char.IsAsciiDigit(digit))
-            {
-                return false;
-            }
-        }
-
-        if (digits.Length > 1 && digits[0] == '0')
-        {
-            return false;
-        }
-
-        if (!uint.TryParse(digits, out var parsed) || parsed == 0)
-        {
-            return false;
-        }
-
-        version = new SchemaVersion(parsed);
-        return true;
+        result = default;
+        return false;
     }
 }

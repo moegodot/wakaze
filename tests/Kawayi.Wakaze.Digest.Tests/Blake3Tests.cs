@@ -148,15 +148,9 @@ public class Blake3Tests
         Blake3 digest = default;
         Span<byte> bytes = digest;
 
-        for (var i = 0; i < bytes.Length; i++)
-        {
-            bytes[i] = unchecked((byte)(seed + i));
-        }
+        for (var i = 0; i < bytes.Length; i++) bytes[i] = unchecked((byte)(seed + i));
 
-        foreach (var (index, value) in overrides)
-        {
-            bytes[index] = value;
-        }
+        foreach (var (index, value) in overrides) bytes[index] = value;
 
         return digest;
     }

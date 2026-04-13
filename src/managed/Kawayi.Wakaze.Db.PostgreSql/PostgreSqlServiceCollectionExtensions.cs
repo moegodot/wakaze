@@ -44,10 +44,14 @@ public static class PostgreSqlServiceCollectionExtensions
 
         services.AddSingleton(frozenOptions);
         services.AddSingleton<PostgreSqlDatabaseProvider>();
-        services.AddSingleton<IDatabaseProvider>(static provider => provider.GetRequiredService<PostgreSqlDatabaseProvider>());
-        services.AddSingleton<IDatabaseMaintenanceService>(static provider => provider.GetRequiredService<PostgreSqlDatabaseProvider>());
-        services.AddSingleton<IDatabaseDumper>(static provider => provider.GetRequiredService<PostgreSqlDatabaseProvider>());
-        services.AddSingleton<IDatabaseRestorer>(static provider => provider.GetRequiredService<PostgreSqlDatabaseProvider>());
+        services.AddSingleton<IDatabaseProvider>(static provider =>
+            provider.GetRequiredService<PostgreSqlDatabaseProvider>());
+        services.AddSingleton<IDatabaseMaintenanceService>(static provider =>
+            provider.GetRequiredService<PostgreSqlDatabaseProvider>());
+        services.AddSingleton<IDatabaseDumper>(static provider =>
+            provider.GetRequiredService<PostgreSqlDatabaseProvider>());
+        services.AddSingleton<IDatabaseRestorer>(static provider =>
+            provider.GetRequiredService<PostgreSqlDatabaseProvider>());
 
         return services;
     }

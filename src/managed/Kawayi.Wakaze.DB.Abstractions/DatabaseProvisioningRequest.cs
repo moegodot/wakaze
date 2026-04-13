@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Db.Abstractions;
 
@@ -15,7 +16,7 @@ namespace Kawayi.Wakaze.Db.Abstractions;
 /// </param>
 /// <param name="Properties">Optional provider-specific provisioning properties.</param>
 public sealed record DatabaseProvisioningRequest(
-    SchemaId<DatabaseScheme> ProviderId,
+    SchemaId<DatabaseProviderScheme> ProviderId,
     DatabaseLocation Location,
     string? DisplayName = null,
     DatabaseConnectionRequest AdministrativeConnection = default,

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Kawayi.Wakaze.Entity.Abstractions;
 
 namespace Kawayi.Wakaze.Semantics.Abstractions;

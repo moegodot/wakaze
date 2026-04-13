@@ -49,30 +49,18 @@ public sealed class PostgreSqlDatabase : IDatabase
         ApplyProperties(builder, merged.Properties);
 
         builder.Host = _location.Host;
-        if (_location.Port is int port)
-        {
-            builder.Port = port;
-        }
+        if (_location.Port is int port) builder.Port = port;
 
         builder.Database = GetRequiredDatabaseName(merged, _location);
 
         if (merged.Credential is DatabaseCredential credential)
         {
-            if (!string.IsNullOrWhiteSpace(credential.UserName))
-            {
-                builder.Username = credential.UserName;
-            }
+            if (!string.IsNullOrWhiteSpace(credential.UserName)) builder.Username = credential.UserName;
 
-            if (credential.Password is not null)
-            {
-                builder.Password = credential.Password;
-            }
+            if (credential.Password is not null) builder.Password = credential.Password;
         }
 
-        if (merged.ReadOnly is true)
-        {
-            builder.Options = AppendReadOnlyOption(builder.Options);
-        }
+        if (merged.ReadOnly is true) builder.Options = AppendReadOnlyOption(builder.Options);
 
         return ValueTask.FromResult(builder.ConnectionString);
     }
@@ -111,7 +99,8 @@ public sealed class PostgreSqlDatabase : IDatabase
         return ValueTask.CompletedTask;
     }
 
-    internal static DatabaseConnectionRequest NormalizeDatabaseName(DatabaseConnectionRequest request, string databaseName)
+    internal static DatabaseConnectionRequest NormalizeDatabaseName(DatabaseConnectionRequest request,
+        string databaseName)
     {
         return request with { DatabaseName = databaseName };
     }
@@ -131,24 +120,17 @@ public sealed class PostgreSqlDatabase : IDatabase
     {
         var databaseName = request.DatabaseName ?? location.DatabaseName;
         if (string.IsNullOrWhiteSpace(databaseName))
-        {
             throw new ArgumentException("A database name is required for PostgreSQL endpoint locations.");
-        }
 
         return databaseName;
     }
 
-    private static DatabaseCredential? MergeCredential(DatabaseCredential? baseline, DatabaseCredential? overrideCredential)
+    private static DatabaseCredential? MergeCredential(DatabaseCredential? baseline,
+        DatabaseCredential? overrideCredential)
     {
-        if (baseline is null)
-        {
-            return overrideCredential;
-        }
+        if (baseline is null) return overrideCredential;
 
-        if (overrideCredential is null)
-        {
-            return baseline;
-        }
+        if (overrideCredential is null) return baseline;
 
         return new DatabaseCredential(
             overrideCredential.Value.UserName ?? baseline.Value.UserName,
@@ -159,57 +141,35 @@ public sealed class PostgreSqlDatabase : IDatabase
         IReadOnlyDictionary<string, string?>? baseline,
         IReadOnlyDictionary<string, string?>? overrideProperties)
     {
-        if (baseline is null && overrideProperties is null)
-        {
-            return null;
-        }
+        if (baseline is null && overrideProperties is null) return null;
 
         var merged = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
         if (baseline is not null)
-        {
             foreach (var pair in baseline)
-            {
                 merged[pair.Key] = pair.Value;
-            }
-        }
 
         if (overrideProperties is not null)
-        {
             foreach (var pair in overrideProperties)
-            {
                 merged[pair.Key] = pair.Value;
-            }
-        }
 
         return merged;
     }
 
-    private static void ApplyProperties(NpgsqlConnectionStringBuilder builder, IReadOnlyDictionary<string, string?>? properties)
+    private static void ApplyProperties(NpgsqlConnectionStringBuilder builder,
+        IReadOnlyDictionary<string, string?>? properties)
     {
-        if (properties is null)
-        {
-            return;
-        }
+        if (properties is null) return;
 
-        foreach (var pair in properties)
-        {
-            builder[pair.Key] = pair.Value;
-        }
+        foreach (var pair in properties) builder[pair.Key] = pair.Value;
     }
 
     private static string AppendReadOnlyOption(string? options)
     {
         const string readOnlyOption = "-c default_transaction_read_only=on";
-        if (string.IsNullOrWhiteSpace(options))
-        {
-            return readOnlyOption;
-        }
+        if (string.IsNullOrWhiteSpace(options)) return readOnlyOption;
 
-        if (options.Contains("default_transaction_read_only=on", StringComparison.Ordinal))
-        {
-            return options;
-        }
+        if (options.Contains("default_transaction_read_only=on", StringComparison.Ordinal)) return options;
 
         return $"{options} {readOnlyOption}";
     }

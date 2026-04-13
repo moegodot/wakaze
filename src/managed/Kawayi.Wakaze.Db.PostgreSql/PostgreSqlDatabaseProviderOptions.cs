@@ -24,21 +24,15 @@ public sealed class PostgreSqlDatabaseProviderOptions
         };
 
         if (string.IsNullOrWhiteSpace(clone.ToolBinaryDirectory))
-        {
             throw new InvalidOperationException("Configure ToolBinaryDirectory.");
-        }
 
         clone.ToolBinaryDirectory = Path.GetFullPath(clone.ToolBinaryDirectory);
         if (!Directory.Exists(clone.ToolBinaryDirectory))
-        {
             throw new InvalidOperationException(
                 $"The PostgreSQL tool directory '{clone.ToolBinaryDirectory}' does not exist.");
-        }
 
         if (string.IsNullOrWhiteSpace(clone.DefaultAdministrativeDatabaseName))
-        {
             throw new InvalidOperationException("Configure DefaultAdministrativeDatabaseName.");
-        }
 
         return clone;
     }

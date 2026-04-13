@@ -29,9 +29,7 @@ public class SqliteEntityStoreTests
         var revision = await scope.Store.GetRevisionAsync(entityId);
 
         if (writtenRevision is null || revision is null)
-        {
             throw new Exception("Expected the entity revision to be available.");
-        }
 
         await Assert.That(roundTrip).IsEqualTo(entity);
         await Assert.That(await scope.Store.ExistsAsync(entityId)).IsTrue();
@@ -67,23 +65,21 @@ public class SqliteEntityStoreTests
         var second = CreateEntity(entityId, [new EntityRef(EntityId.GenerateNew(), RefKind.Strong)]);
         var initialRevision = await PutAndGetRevisionAsync(scope.Store, first);
 
-        var tryPutSucceeded = await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.TryPutAsync(second, initialRevision, cancellationToken));
+        var tryPutSucceeded = await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.TryPutAsync(second, initialRevision, cancellationToken));
         var currentRevision = await scope.Store.GetRevisionAsync(entityId);
 
         if (currentRevision is null)
-        {
             throw new Exception("Expected a visible revision after a successful conditional put.");
-        }
 
-        var staleTryPutSucceeded = await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.TryPutAsync(first, initialRevision, cancellationToken));
-        var staleTryDeleteSucceeded = await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.TryDeleteAsync(entityId, initialRevision, cancellationToken));
-        var currentTryDeleteSucceeded = await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.TryDeleteAsync(entityId, currentRevision.Value, cancellationToken));
-        var retryAfterDeleteSucceeded = await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.TryPutAsync(first, currentRevision.Value, cancellationToken));
+        var staleTryPutSucceeded = await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.TryPutAsync(first, initialRevision, cancellationToken));
+        var staleTryDeleteSucceeded = await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.TryDeleteAsync(entityId, initialRevision, cancellationToken));
+        var currentTryDeleteSucceeded = await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.TryDeleteAsync(entityId, currentRevision.Value, cancellationToken));
+        var retryAfterDeleteSucceeded = await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.TryPutAsync(first, currentRevision.Value, cancellationToken));
 
         await Assert.That(tryPutSucceeded).IsTrue();
         await Assert.That(staleTryPutSucceeded).IsFalse();
@@ -100,11 +96,11 @@ public class SqliteEntityStoreTests
         var entity = CreateEntity(entityId, [new EntityRef(EntityId.GenerateNew(), RefKind.Strong)]);
         var revision = await PutAndGetRevisionAsync(scope.Store, entity);
 
-        await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.DeleteAsync(entityId, cancellationToken));
+        await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.DeleteAsync(entityId, cancellationToken));
 
         var defaultRead = await scope.Store.GetAsync(entityId);
-        var includeDeletedRead = await scope.Store.GetAsync(entityId, new EntityReadOptions(IncludeDeleted: true));
+        var includeDeletedRead = await scope.Store.GetAsync(entityId, new EntityReadOptions(true));
         var history = await CollectAsync(scope.Store.ListRevisionsAsync(entityId));
 
         await Assert.That(defaultRead).IsNull();
@@ -128,8 +124,8 @@ public class SqliteEntityStoreTests
         var unrelated = CreateEntity(EntityId.GenerateNew(), [new EntityRef(EntityId.GenerateNew(), RefKind.Weak)]);
 
         await scope.Store.PutGraphAsync([CreateEntity(targetId), referrerA, referrerB, unrelated]);
-        await scope.Store.ExecuteAsync(
-            (context, cancellationToken) => context.DeleteAsync(referrerB.Id, cancellationToken));
+        await scope.Store.ExecuteAsync((context, cancellationToken) =>
+            context.DeleteAsync(referrerB.Id, cancellationToken));
 
         var referrers = await CollectAsync(scope.Store.GetReferrersAsync(targetId));
 
@@ -149,10 +145,7 @@ public class SqliteEntityStoreTests
         await PutAndGetRevisionAsync(scope.Store, entity);
         var roundTrip = await scope.Store.GetAsync(entityId);
 
-        if (roundTrip is null)
-        {
-            throw new Exception("Expected the entity to be readable after it was written.");
-        }
+        if (roundTrip is null) throw new Exception("Expected the entity to be readable after it was written.");
 
         await Assert.That(roundTrip).IsEqualTo(entity);
         await Assert.That(roundTrip.BlobRefs.Length).IsEqualTo(3);
@@ -244,12 +237,12 @@ public class SqliteEntityStoreTests
         var candidateB = CreateEntity(entityId, [new EntityRef(EntityId.GenerateNew(), RefKind.Weak)]);
         var initialRevision = await PutAndGetRevisionAsync(scope.Store, initial);
 
-        var firstTask = scope.Store.ExecuteAsync(
-                (context, cancellationToken) => context.TryPutAsync(candidateA, initialRevision, cancellationToken))
+        var firstTask = scope.Store.ExecuteAsync((context, cancellationToken) =>
+                context.TryPutAsync(candidateA, initialRevision, cancellationToken))
             .AsTask();
 
-        var secondTask = scope.Store.ExecuteAsync(
-                (context, cancellationToken) => context.TryPutAsync(candidateB, initialRevision, cancellationToken))
+        var secondTask = scope.Store.ExecuteAsync((context, cancellationToken) =>
+                context.TryPutAsync(candidateB, initialRevision, cancellationToken))
             .AsTask();
 
         var results = await Task.WhenAll(firstTask, secondTask);
@@ -257,21 +250,16 @@ public class SqliteEntityStoreTests
 
         await Assert.That(results.Count(static result => result)).IsEqualTo(1);
 
-        if (current is null)
-        {
-            throw new Exception("Expected one of the concurrent updates to win.");
-        }
+        if (current is null) throw new Exception("Expected one of the concurrent updates to win.");
 
         if (current != candidateA && current != candidateB)
-        {
             throw new Exception("The persisted entity did not match either concurrent candidate.");
-        }
     }
 
     [Test]
     public async Task MigrateAsync_IsIdempotent_OnEmptyDatabase()
     {
-        await using var scope = await TestSqliteEntityStoreScope.CreateAsync(migrate: false);
+        await using var scope = await TestSqliteEntityStoreScope.CreateAsync(false);
 
         await scope.Migrator.MigrateAsync();
         await scope.Migrator.MigrateAsync();
@@ -291,10 +279,7 @@ public class SqliteEntityStoreTests
             await context.PutAsync(entity, cancellationToken);
 
             var revision = await context.GetRevisionAsync(entity.Id, cancellationToken);
-            if (revision is null)
-            {
-                throw new Exception("Expected a visible revision after put.");
-            }
+            if (revision is null) throw new Exception("Expected a visible revision after put.");
 
             return revision.Value;
         });
@@ -316,15 +301,9 @@ public class SqliteEntityStoreTests
         Kawayi.Wakaze.Digest.Blake3 digest = default;
         Span<byte> bytes = digest;
 
-        for (var index = 0; index < bytes.Length; index++)
-        {
-            bytes[index] = unchecked((byte)(seed + index));
-        }
+        for (var index = 0; index < bytes.Length; index++) bytes[index] = unchecked((byte)(seed + index));
 
-        foreach (var (index, value) in overrides)
-        {
-            bytes[index] = value;
-        }
+        foreach (var (index, value) in overrides) bytes[index] = value;
 
         return new BlobId(digest);
     }
@@ -332,10 +311,7 @@ public class SqliteEntityStoreTests
     private static async ValueTask<List<T>> CollectAsync<T>(IAsyncEnumerable<T> source)
     {
         var result = new List<T>();
-        await foreach (var item in source)
-        {
-            result.Add(item);
-        }
+        await foreach (var item in source) result.Add(item);
 
         return result;
     }

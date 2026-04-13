@@ -1,4 +1,3 @@
-
 namespace Kawayi.Wakaze.Entity.Abstractions;
 
 /// <summary>

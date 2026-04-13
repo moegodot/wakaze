@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Kawayi.Wakaze.Db.Abstractions;
 using Kawayi.Wakaze.Process;
 using Npgsql;
@@ -8,7 +9,8 @@ namespace Kawayi.Wakaze.Db.PostgreSql;
 /// <summary>
 /// Provides PostgreSQL database resolution, provisioning, maintenance, dump, and restore operations.
 /// </summary>
-public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMaintenanceService, IDatabaseDumper, IDatabaseRestorer
+public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMaintenanceService, IDatabaseDumper,
+    IDatabaseRestorer
 {
     private const string DumpArchiveFileName = "database.dump";
     private const string DumpManifestFileName = "manifest.json";
@@ -34,12 +36,12 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
     /// <summary>
     /// Gets the stable provider identifier.
     /// </summary>
-    public Kawayi.Wakaze.Abstractions.SchemaId<DatabaseScheme> ProviderId => PostgreSqlSchemaIds.Provider;
+    public SchemaId<DatabaseProviderScheme> ProviderId => PostgreSqlSchemaIds.Provider;
 
     /// <summary>
     /// Gets the stable engine identifier.
     /// </summary>
-    public Kawayi.Wakaze.Abstractions.SchemaId<DatabaseScheme> Engine => PostgreSqlSchemaIds.Engine;
+    public SchemaId<DatabaseScheme> Engine => PostgreSqlSchemaIds.Engine;
 
     /// <summary>
     /// Gets the provider display name.
@@ -76,27 +78,18 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         cancellationToken.ThrowIfCancellationRequested();
 
         if (request.ProviderId is { } providerId && providerId != ProviderId)
-        {
             return ValueTask.FromResult<IDatabase?>(null);
-        }
 
-        if (request.Engine is { } engine && engine != Engine)
-        {
-            return ValueTask.FromResult<IDatabase?>(null);
-        }
+        if (request.Engine is { } engine && engine != Engine) return ValueTask.FromResult<IDatabase?>(null);
 
-        if (request.Location is not DatabaseEndpointLocation endpoint)
-        {
-            return ValueTask.FromResult<IDatabase?>(null);
-        }
+        if (request.Location is not DatabaseEndpointLocation endpoint) return ValueTask.FromResult<IDatabase?>(null);
 
         ValidateEndpoint(endpoint);
 
         var databaseName = request.Connection.DatabaseName ?? endpoint.DatabaseName;
         if (string.IsNullOrWhiteSpace(databaseName))
-        {
-            throw new ArgumentException("A database name is required for PostgreSQL endpoint locations.", nameof(request));
-        }
+            throw new ArgumentException("A database name is required for PostgreSQL endpoint locations.",
+                nameof(request));
 
         var normalizedEndpoint = endpoint with { DatabaseName = databaseName };
         var baselineConnection = PostgreSqlDatabase.NormalizeDatabaseName(request.Connection, databaseName);
@@ -114,21 +107,15 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         CancellationToken cancellationToken = default)
     {
         if (request.ProviderId != ProviderId)
-        {
             throw new ArgumentException($"Unsupported provider id '{request.ProviderId}'.", nameof(request));
-        }
 
         if (request.Location is not DatabaseEndpointLocation endpoint)
-        {
             throw new ArgumentException("PostgreSQL provisioning requires an endpoint location.", nameof(request));
-        }
 
         ValidateEndpoint(endpoint);
 
         if (string.IsNullOrWhiteSpace(endpoint.DatabaseName))
-        {
             throw new ArgumentException("A database name is required for PostgreSQL provisioning.", nameof(request));
-        }
 
         var adminRequest = request.AdministrativeConnection with
         {
@@ -145,7 +132,8 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        var resolvedConnection = PostgreSqlDatabase.NormalizeDatabaseName(request.AdministrativeConnection, endpoint.DatabaseName);
+        var resolvedConnection =
+            PostgreSqlDatabase.NormalizeDatabaseName(request.AdministrativeConnection, endpoint.DatabaseName);
         return CreateDatabase(endpoint, resolvedConnection);
     }
 
@@ -163,7 +151,8 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
 
         try
         {
-            await using var connection = await postgreSqlDatabase.OpenConnectionAsync(cancellationToken: cancellationToken);
+            await using var connection =
+                await postgreSqlDatabase.OpenConnectionAsync(cancellationToken: cancellationToken);
             await using var command = connection.CreateCommand();
             command.CommandText = "SELECT 1;";
             await command.ExecuteScalarAsync(cancellationToken);
@@ -193,7 +182,8 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         {
             DatabaseMaintenanceOperation.UpdateStatistics => "ANALYZE;",
             DatabaseMaintenanceOperation.CompactStorage => "VACUUM (FULL);",
-            DatabaseMaintenanceOperation.RebuildIndexes => $"REINDEX DATABASE {QuoteIdentifier(endpoint.DatabaseName!)};",
+            DatabaseMaintenanceOperation.RebuildIndexes =>
+                $"REINDEX DATABASE {QuoteIdentifier(endpoint.DatabaseName!)};",
             _ => throw new ArgumentOutOfRangeException(nameof(operation))
         };
 
@@ -209,7 +199,8 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
     /// <param name="dumpDirectory">The output directory.</param>
     /// <param name="database">The database to dump.</param>
     /// <param name="cancellationToken">A token that cancels the operation.</param>
-    public async Task DumpToAsync(string dumpDirectory, IDatabase database, CancellationToken cancellationToken = default)
+    public async Task DumpToAsync(string dumpDirectory, IDatabase database,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dumpDirectory);
 
@@ -225,9 +216,9 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
                 GetRequiredToolPath("pg_dump"),
                 BuildDumpArguments(endpoint, archivePath, postgreSqlDatabase.BaselineConnection),
                 dumpDirectory,
-                CaptureOutput: false,
+                false,
                 BuildToolEnvironment(postgreSqlDatabase.BaselineConnection),
-                ThrowOnNonZeroExit: true),
+                true),
             cancellationToken);
 
         var manifest = new PostgreSqlDumpManifest(
@@ -262,10 +253,10 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         var manifestPath = Path.Combine(dumpDirectory, DumpManifestFileName);
         await using var manifestStream = File.OpenRead(manifestPath);
         var manifest = await JsonSerializer.DeserializeAsync<PostgreSqlDumpManifest>(
-            manifestStream,
-            ManifestSerializerOptions,
-            cancellationToken)
-            ?? throw new InvalidOperationException("The dump manifest could not be read.");
+                           manifestStream,
+                           ManifestSerializerOptions,
+                           cancellationToken)
+                       ?? throw new InvalidOperationException("The dump manifest could not be read.");
 
         ValidateManifest(manifest);
 
@@ -278,9 +269,9 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
                 GetRequiredToolPath("pg_restore"),
                 BuildRestoreArguments(postgreSqlDatabase.Location, archivePath, postgreSqlDatabase.BaselineConnection),
                 dumpDirectory,
-                CaptureOutput: false,
+                false,
                 BuildToolEnvironment(postgreSqlDatabase.BaselineConnection),
-                ThrowOnNonZeroExit: true),
+                true),
             cancellationToken);
 
         return restoredDatabase;
@@ -319,15 +310,12 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         var clauses = new List<string> { $"CREATE DATABASE {QuoteIdentifier(databaseName)}" };
 
         if (properties is not null)
-        {
             foreach (var pair in properties)
             {
                 if (pair.Key.Equals("owner", StringComparison.OrdinalIgnoreCase))
                 {
                     if (string.IsNullOrWhiteSpace(pair.Value))
-                    {
                         throw new ArgumentException("Provisioning property 'owner' cannot be empty.");
-                    }
 
                     clauses.Add($"OWNER = {QuoteIdentifier(pair.Value)}");
                     continue;
@@ -336,9 +324,7 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
                 if (pair.Key.Equals("template", StringComparison.OrdinalIgnoreCase))
                 {
                     if (string.IsNullOrWhiteSpace(pair.Value))
-                    {
                         throw new ArgumentException("Provisioning property 'template' cannot be empty.");
-                    }
 
                     clauses.Add($"TEMPLATE = {QuoteIdentifier(pair.Value)}");
                     continue;
@@ -346,7 +332,6 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
 
                 throw new ArgumentException($"Unsupported provisioning property '{pair.Key}'.");
             }
-        }
 
         return string.Join(" ", clauses) + ";";
     }
@@ -354,9 +339,7 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
     private static void ValidateEndpoint(DatabaseEndpointLocation endpoint)
     {
         if (string.IsNullOrWhiteSpace(endpoint.Host))
-        {
             throw new ArgumentException("A host is required for PostgreSQL endpoint locations.");
-        }
     }
 
     private PostgreSqlDatabase EnsureSupportedDatabase(IDatabase database)
@@ -364,14 +347,12 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         ArgumentNullException.ThrowIfNull(database);
 
         if (database is not PostgreSqlDatabase postgreSqlDatabase)
-        {
-            throw new ArgumentException("The database resource was not created by this PostgreSQL provider.", nameof(database));
-        }
+            throw new ArgumentException("The database resource was not created by this PostgreSQL provider.",
+                nameof(database));
 
         if (postgreSqlDatabase.Descriptor.ProviderId != ProviderId || postgreSqlDatabase.Descriptor.Engine != Engine)
-        {
-            throw new ArgumentException("The database resource does not match this PostgreSQL provider.", nameof(database));
-        }
+            throw new ArgumentException("The database resource does not match this PostgreSQL provider.",
+                nameof(database));
 
         return postgreSqlDatabase;
     }
@@ -413,13 +394,11 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
         }.Where(static x => !string.IsNullOrWhiteSpace(x)).ToArray();
     }
 
-    private static IReadOnlyDictionary<string, string?>? BuildToolEnvironment(DatabaseConnectionRequest connectionRequest)
+    private static IReadOnlyDictionary<string, string?>? BuildToolEnvironment(
+        DatabaseConnectionRequest connectionRequest)
     {
         var password = connectionRequest.Credential?.Password;
-        if (password is null)
-        {
-            return null;
-        }
+        if (password is null) return null;
 
         return new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -436,29 +415,19 @@ public sealed class PostgreSqlDatabaseProvider : IDatabaseProvider, IDatabaseMai
     private static void ValidateManifest(PostgreSqlDumpManifest manifest)
     {
         if (!string.Equals(manifest.ProviderId, PostgreSqlSchemaIds.Provider.ToString(), StringComparison.Ordinal))
-        {
             throw new InvalidOperationException($"Unsupported dump provider id '{manifest.ProviderId}'.");
-        }
 
         if (!string.Equals(manifest.Engine, PostgreSqlSchemaIds.Engine.ToString(), StringComparison.Ordinal))
-        {
             throw new InvalidOperationException($"Unsupported dump engine '{manifest.Engine}'.");
-        }
 
         if (!string.Equals(manifest.LocationKind, nameof(DatabaseLocationKind.Endpoint), StringComparison.Ordinal))
-        {
             throw new InvalidOperationException($"Unsupported dump location kind '{manifest.LocationKind}'.");
-        }
 
         if (!string.Equals(manifest.Format, DumpFormat, StringComparison.Ordinal))
-        {
             throw new InvalidOperationException($"Unsupported dump format '{manifest.Format}'.");
-        }
 
         if (string.IsNullOrWhiteSpace(manifest.Host) || string.IsNullOrWhiteSpace(manifest.DatabaseName))
-        {
             throw new InvalidOperationException("The dump manifest is missing endpoint information.");
-        }
     }
 
     private static string QuoteIdentifier(string identifier)

@@ -20,7 +20,7 @@ internal sealed class EntityStoreDbContext(DbContextOptions<EntityStoreDbContext
     {
         var blobIdConverter = new ValueConverter<BlobId, string>(
             static value => value.ToString("R", null),
-            static value => new BlobId(Kawayi.Wakaze.Digest.Blake3.Parse(value, null)));
+            static value => new BlobId(Digest.Blake3.Parse(value, null)));
 
         modelBuilder.Entity<StoreMetadataRow>(entity =>
         {

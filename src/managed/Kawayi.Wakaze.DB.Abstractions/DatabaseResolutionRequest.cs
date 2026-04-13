@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Db.Abstractions;
 
@@ -16,7 +17,7 @@ namespace Kawayi.Wakaze.Db.Abstractions;
 /// <param name="Properties">Optional provider-specific resolution properties.</param>
 public sealed record DatabaseResolutionRequest(
     DatabaseLocation Location,
-    SchemaId<DatabaseScheme>? ProviderId = null,
+    SchemaId<DatabaseProviderScheme>? ProviderId = null,
     SchemaId<DatabaseScheme>? Engine = null,
     DatabaseConnectionRequest Connection = default,
     IReadOnlyDictionary<string, string?>? Properties = null);

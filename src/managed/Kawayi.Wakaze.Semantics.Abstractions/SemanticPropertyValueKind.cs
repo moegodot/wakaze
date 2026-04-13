@@ -33,5 +33,5 @@ public enum SemanticPropertyValueKind : byte
     /// <summary>
     /// Identifies a canonical JSON value.
     /// </summary>
-    Json = 5,
+    Json = 5
 }

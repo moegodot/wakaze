@@ -40,6 +40,13 @@
         <OutputType Condition="'$(MSBuildProjectName.EndsWith(`.Cli`))' == 'true'">Exe</OutputType>
     </PropertyGroup>
 
+    <ItemGroup Condition="'$(MSBuildProjectName.EndsWith(`.Analyzer`))' != 'true' And '$(MSBuildProjectName.EndsWith(`.Generator`))' != 'true'">
+        <ProjectReference Include="$(MSBuildThisFileDirectory)\src\managed\Kawayi.Wakaze.Analyzer\Kawayi.Wakaze.Analyzer.csproj"
+                            OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+        <ProjectReference Include="$(MSBuildThisFileDirectory)\src\managed\Kawayi.Wakaze.Generator\Kawayi.Wakaze.Generator.csproj"
+                            OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
     <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`.Tests`))' == 'true'">
         <IsPackable>false</IsPackable>
         <GenerateDocumentationFile>false</GenerateDocumentationFile>

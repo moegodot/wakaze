@@ -47,9 +47,12 @@ public static class SqliteEntityServiceCollectionExtensions
         services.AddSingleton<SqliteEntityStore>();
         services.AddSingleton<IEntityStore>(static provider => provider.GetRequiredService<SqliteEntityStore>());
         services.AddSingleton<IEntityReader>(static provider => provider.GetRequiredService<SqliteEntityStore>());
-        services.AddSingleton<IEntityHistoryReader>(static provider => provider.GetRequiredService<SqliteEntityStore>());
-        services.AddSingleton<IEntitySnapshotSource>(static provider => provider.GetRequiredService<SqliteEntityStore>());
-        services.AddSingleton<IEntityAtomicExecutor>(static provider => provider.GetRequiredService<SqliteEntityStore>());
+        services.AddSingleton<IEntityHistoryReader>(static provider =>
+            provider.GetRequiredService<SqliteEntityStore>());
+        services.AddSingleton<IEntitySnapshotSource>(static provider =>
+            provider.GetRequiredService<SqliteEntityStore>());
+        services.AddSingleton<IEntityAtomicExecutor>(static provider =>
+            provider.GetRequiredService<SqliteEntityStore>());
         services.AddSingleton<IEntityGraphWriter>(static provider => provider.GetRequiredService<SqliteEntityStore>());
 
         return services;

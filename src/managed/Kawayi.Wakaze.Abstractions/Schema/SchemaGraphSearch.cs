@@ -1,4 +1,4 @@
-namespace Kawayi.Wakaze.Abstractions;
+namespace Kawayi.Wakaze.Abstractions.Schema;
 
 internal static class SchemaGraphSearch
 {
@@ -21,16 +21,10 @@ internal static class SchemaGraphSearch
 
             foreach (var next in getNeighbors(current))
             {
-                if (!visited.Add(next))
-                {
-                    continue;
-                }
+                if (!visited.Add(next)) continue;
 
                 previous[next] = current;
-                if (next == target)
-                {
-                    return true;
-                }
+                if (next == target) return true;
 
                 queue.Enqueue(next);
             }

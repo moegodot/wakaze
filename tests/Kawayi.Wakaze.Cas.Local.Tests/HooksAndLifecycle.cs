@@ -19,5 +19,4 @@ public class GlobalHooks
         // Runs once after all tests - e.g. stop containers, clean up resources
         return Task.CompletedTask;
     }
-
 }

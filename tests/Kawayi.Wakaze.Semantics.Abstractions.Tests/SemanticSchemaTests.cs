@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 using Kawayi.Wakaze.Entity.Abstractions;
 using Kawayi.Wakaze.Semantics.Abstractions;
 
@@ -76,8 +77,8 @@ public class SemanticSchemaTests
         var primary = new FakeSemanticValue(new SchemaId("semantic://wakaze.dev/tag/v2"), "primary");
         var session = new FakeSemanticSession(primary);
 
-        var byFamily = session.TryGet(primary.SchemaId.Family, out ISemanticValue? familyValue);
-        var bySchema = session.TryGetCompatible(primary.SchemaId, out ISemanticValue? schemaValue);
+        var byFamily = session.TryGet(primary.SchemaId.Family, out var familyValue);
+        var bySchema = session.TryGetCompatible(primary.SchemaId, out var schemaValue);
         var byGenericSchema = session.TryGetCompatible(primary.SchemaId, out FakeSemanticValue? typedValue);
 
         await Assert.That(byFamily).IsTrue();

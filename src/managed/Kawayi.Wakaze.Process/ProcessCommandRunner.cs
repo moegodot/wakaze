@@ -33,25 +33,14 @@ public static class ProcessCommandRunner
             UseShellExecute = false
         };
 
-        foreach (var argument in request.Arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
+        foreach (var argument in request.Arguments) startInfo.ArgumentList.Add(argument);
 
         if (request.EnvironmentVariables is not null)
-        {
             foreach (var pair in request.EnvironmentVariables)
-            {
                 if (pair.Value is null)
-                {
                     startInfo.Environment.Remove(pair.Key);
-                }
                 else
-                {
                     startInfo.Environment[pair.Key] = pair.Value;
-                }
-            }
-        }
 
         using var process = new global::System.Diagnostics.Process
         {
@@ -69,8 +58,8 @@ public static class ProcessCommandRunner
                 ex);
         }
 
-        string standardOutput = string.Empty;
-        string standardError = string.Empty;
+        var standardOutput = string.Empty;
+        var standardError = string.Empty;
 
         if (shouldCapture)
         {
@@ -93,12 +82,10 @@ public static class ProcessCommandRunner
             request.CaptureOutput ? standardError : string.Empty);
 
         if (request.ThrowOnNonZeroExit && process.ExitCode != 0)
-        {
             throw new InvalidOperationException(
                 $"Process '{Path.GetFileName(request.FileName)}' exited with code {process.ExitCode}.{Environment.NewLine}" +
                 $"stdout:{Environment.NewLine}{standardOutput}{Environment.NewLine}" +
                 $"stderr:{Environment.NewLine}{standardError}");
-        }
 
         return result;
     }

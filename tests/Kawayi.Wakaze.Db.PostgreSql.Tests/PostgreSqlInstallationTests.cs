@@ -38,10 +38,11 @@ public sealed class PostgreSqlInstallationTests
     [Test]
     public async Task RoleLifecycle_CanCreateUseAndDropRole()
     {
-        await using var installation = await Scope.CreateInstalledEnvironmentAsync("role-lifecycle", initializeDatabase: true, startServer: true);
+        await using var installation = await Scope.CreateInstalledEnvironmentAsync("role-lifecycle", true, true);
 
         await installation.RunInstalledAsync("createuser", ["-h", installation.SocketDirectory, "-s", "portable_user"]);
-        await installation.RunInstalledAsync("createdb", ["-h", installation.SocketDirectory, "-O", "portable_user", "portable_role_db"]);
+        await installation.RunInstalledAsync("createdb",
+            ["-h", installation.SocketDirectory, "-O", "portable_user", "portable_role_db"]);
 
         var currentUser = await Scope.ExecuteInstalledScalarAsync(
             installation,
@@ -63,7 +64,7 @@ public sealed class PostgreSqlInstallationTests
     [Test]
     public async Task TableLifecycle_CanCreateQueryAndDropTable()
     {
-        await using var installation = await Scope.CreateInstalledEnvironmentAsync("table-lifecycle", initializeDatabase: true, startServer: true);
+        await using var installation = await Scope.CreateInstalledEnvironmentAsync("table-lifecycle", true, true);
 
         await installation.RunInstalledAsync("createdb", ["-h", installation.SocketDirectory, "portable_table_db"]);
         await Scope.ExecuteInstalledSqlAsync(
@@ -97,7 +98,7 @@ public sealed class PostgreSqlInstallationTests
     [Test]
     public async Task BackupAndRestore_RoundTripsDataAndExtensions()
     {
-        await using var installation = await Scope.CreateInstalledEnvironmentAsync("backup-restore", initializeDatabase: true, startServer: true);
+        await using var installation = await Scope.CreateInstalledEnvironmentAsync("backup-restore", true, true);
 
         var dumpPath = Path.Combine(installation.RootDirectory, "portable_backup.dump");
 
@@ -146,21 +147,28 @@ public sealed class PostgreSqlInstallationTests
         var initdbPath = Path.Combine(installation.InstallDirectory, "bin", "initdb");
         var libpqPath = Path.Combine(installation.InstallDirectory, "lib", "libpq.5.dylib");
 
-        var postgresDependencies = await RunProcessCaptureAsync("otool", ["-L", postgresPath], installation.RootDirectory);
+        var postgresDependencies =
+            await RunProcessCaptureAsync("otool", ["-L", postgresPath], installation.RootDirectory);
         var psqlDependencies = await RunProcessCaptureAsync("otool", ["-L", psqlPath], installation.RootDirectory);
         var initdbDependencies = await RunProcessCaptureAsync("otool", ["-L", initdbPath], installation.RootDirectory);
         var libpqDependencies = await RunProcessCaptureAsync("otool", ["-L", libpqPath], installation.RootDirectory);
         var libpqInstallName = await RunProcessCaptureAsync("otool", ["-D", libpqPath], installation.RootDirectory);
 
-        await AssertNoForbiddenPathsAsync(postgresDependencies.StandardOutput, Scope.RepositoryRoot, "postgres dependencies");
+        await AssertNoForbiddenPathsAsync(postgresDependencies.StandardOutput, Scope.RepositoryRoot,
+            "postgres dependencies");
         await AssertNoForbiddenPathsAsync(psqlDependencies.StandardOutput, Scope.RepositoryRoot, "psql dependencies");
-        await AssertNoForbiddenPathsAsync(initdbDependencies.StandardOutput, Scope.RepositoryRoot, "initdb dependencies");
+        await AssertNoForbiddenPathsAsync(initdbDependencies.StandardOutput, Scope.RepositoryRoot,
+            "initdb dependencies");
         await AssertNoForbiddenPathsAsync(libpqDependencies.StandardOutput, Scope.RepositoryRoot, "libpq dependencies");
 
-        await AssertContainsAsync(postgresDependencies.StandardOutput, "@executable_path/../lib/libssl.3.dylib", "postgres dependency relocation");
-        await AssertContainsAsync(psqlDependencies.StandardOutput, "@executable_path/../lib/libpq.5.dylib", "psql dependency relocation");
-        await AssertContainsAsync(initdbDependencies.StandardOutput, "@executable_path/../lib/libpq.5.dylib", "initdb dependency relocation");
-        await AssertContainsAsync(libpqDependencies.StandardOutput, "@loader_path/libssl.3.dylib", "libpq dependency relocation");
+        await AssertContainsAsync(postgresDependencies.StandardOutput, "@executable_path/../lib/libssl.3.dylib",
+            "postgres dependency relocation");
+        await AssertContainsAsync(psqlDependencies.StandardOutput, "@executable_path/../lib/libpq.5.dylib",
+            "psql dependency relocation");
+        await AssertContainsAsync(initdbDependencies.StandardOutput, "@executable_path/../lib/libpq.5.dylib",
+            "initdb dependency relocation");
+        await AssertContainsAsync(libpqDependencies.StandardOutput, "@loader_path/libssl.3.dylib",
+            "libpq dependency relocation");
         await AssertContainsAsync(libpqInstallName.StandardOutput, "@loader_path/libpq.5.dylib", "libpq install name");
     }
 
@@ -174,17 +182,15 @@ public sealed class PostgreSqlInstallationTests
                 fileName,
                 arguments,
                 workingDirectory,
-                CaptureOutput: true,
-                EnvironmentVariables: null,
-                ThrowOnNonZeroExit: true));
+                true,
+                null,
+                true));
     }
 
     private static Task AssertEqualAsync(string expected, string actual, string operation)
     {
         if (!string.Equals(expected, actual, StringComparison.Ordinal))
-        {
             throw new InvalidOperationException($"Expected '{operation}' to return '{expected}', but got '{actual}'.");
-        }
 
         return Task.CompletedTask;
     }
@@ -192,10 +198,8 @@ public sealed class PostgreSqlInstallationTests
     private static Task AssertContainsAsync(string actual, string expectedSubstring, string operation)
     {
         if (!actual.Contains(expectedSubstring, StringComparison.Ordinal))
-        {
             throw new InvalidOperationException(
                 $"Expected '{operation}' to contain '{expectedSubstring}', but got '{actual.Trim()}'.");
-        }
 
         return Task.CompletedTask;
     }
@@ -203,14 +207,11 @@ public sealed class PostgreSqlInstallationTests
     private static Task AssertNoForbiddenPathsAsync(string output, string repositoryRoot, string operation)
     {
         if (output.Contains(repositoryRoot, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException($"'{operation}' still references the repository root '{repositoryRoot}'.");
-        }
+            throw new InvalidOperationException(
+                $"'{operation}' still references the repository root '{repositoryRoot}'.");
 
         if (output.Contains("/opt/homebrew/", StringComparison.Ordinal))
-        {
             throw new InvalidOperationException($"'{operation}' still references a Homebrew absolute path.");
-        }
 
         return Task.CompletedTask;
     }

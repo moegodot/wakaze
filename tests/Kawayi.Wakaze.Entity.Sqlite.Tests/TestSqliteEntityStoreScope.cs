@@ -36,10 +36,7 @@ internal sealed class TestSqliteEntityStoreScope : IAsyncDisposable
         var databasePath = Path.Combine(rootPath, "entity-store.db");
         var scope = new TestSqliteEntityStoreScope(rootPath, databasePath);
 
-        if (migrate)
-        {
-            await scope.Migrator.MigrateAsync();
-        }
+        if (migrate) await scope.Migrator.MigrateAsync();
 
         return scope;
     }
@@ -48,10 +45,7 @@ internal sealed class TestSqliteEntityStoreScope : IAsyncDisposable
     {
         try
         {
-            if (Directory.Exists(RootPath))
-            {
-                Directory.Delete(RootPath, true);
-            }
+            if (Directory.Exists(RootPath)) Directory.Delete(RootPath, true);
         }
         catch
         {

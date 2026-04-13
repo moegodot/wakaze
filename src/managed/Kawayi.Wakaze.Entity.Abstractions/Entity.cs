@@ -65,14 +65,8 @@ public sealed class Entity : IEquatable<Entity>
     public override int GetHashCode()
     {
         var hash = new HashCode();
-        foreach (var item in Refs)
-        {
-            hash.Add(item);
-        }
-        foreach (var item in BlobRefs)
-        {
-            hash.Add(item);
-        }
+        foreach (var item in Refs) hash.Add(item);
+        foreach (var item in BlobRefs) hash.Add(item);
         hash.Add(Id);
         return hash.ToHashCode();
     }

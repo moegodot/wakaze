@@ -1,4 +1,5 @@
 using Kawayi.Wakaze.Abstractions;
+using Kawayi.Wakaze.Abstractions.Schema;
 
 namespace Kawayi.Wakaze.Semantics.Abstractions;
 
@@ -20,9 +21,7 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
         ReadOnlyMemory<byte> content)
     {
         if (string.IsNullOrWhiteSpace(format))
-        {
             throw new ArgumentException("The payload format cannot be empty.", nameof(format));
-        }
 
         Schema = schema;
         Format = format;
@@ -76,10 +75,7 @@ public readonly struct SemanticPayload : IEquatable<SemanticPayload>
         hash.Add(Schema);
         hash.Add(Format, StringComparer.Ordinal);
 
-        foreach (var value in Content.Span)
-        {
-            hash.Add(value);
-        }
+        foreach (var value in Content.Span) hash.Add(value);
 
         return hash.ToHashCode();
     }

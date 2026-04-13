@@ -13,5 +13,5 @@ public enum RefKind : byte
     /// <summary>
     /// Identifies a strong reference that contributes to keeping the target entity reachable.
     /// </summary>
-    Strong = 1,
+    Strong = 1
 }

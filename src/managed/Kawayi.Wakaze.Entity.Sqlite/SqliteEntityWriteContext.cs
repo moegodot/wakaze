@@ -66,7 +66,8 @@ internal sealed class SqliteEntityWriteContext : IEntityWriteContext
         EntityRevision expectedRevision,
         CancellationToken cancellationToken = default)
     {
-        return SqliteEntityStoreOperations.TryPutAsync(_context, _metadata, entity, expectedRevision, cancellationToken);
+        return SqliteEntityStoreOperations.TryPutAsync(_context, _metadata, entity, expectedRevision,
+            cancellationToken);
     }
 
     public ValueTask<bool> TryDeleteAsync(

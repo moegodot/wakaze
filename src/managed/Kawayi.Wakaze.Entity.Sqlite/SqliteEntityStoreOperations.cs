@@ -19,20 +19,11 @@ internal static class SqliteEntityStoreOperations
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.EntityId == id.Id, cancellationToken);
 
-        if (head is null)
-        {
-            return null;
-        }
+        if (head is null) return null;
 
-        if (head.IsDeleted && !options.IncludeDeleted)
-        {
-            return null;
-        }
+        if (head.IsDeleted && !options.IncludeDeleted) return null;
 
-        if (head.LastContentRevisionId is null)
-        {
-            return null;
-        }
+        if (head.LastContentRevisionId is null) return null;
 
         return await GetContentByRevisionIdAsync(context, id, head.LastContentRevisionId.Value, cancellationToken);
     }
@@ -57,10 +48,7 @@ internal static class SqliteEntityStoreOperations
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.EntityId == id.Id, cancellationToken);
 
-        if (head is null || head.IsDeleted || head.LastContentRevisionId is null)
-        {
-            return null;
-        }
+        if (head is null || head.IsDeleted || head.LastContentRevisionId is null) return null;
 
         return identity.CreateEntityRevision(id, head.CurrentRevisionId);
     }
@@ -72,10 +60,7 @@ internal static class SqliteEntityStoreOperations
         EntityRevision revision,
         CancellationToken cancellationToken)
     {
-        if (!identity.Matches(id, revision, checked((long)revision.Revision.RevisionId)))
-        {
-            return null;
-        }
+        if (!identity.Matches(id, revision, checked((long)revision.Revision.RevisionId))) return null;
 
         return await GetContentByRevisionIdAsync(
             context,
@@ -98,9 +83,7 @@ internal static class SqliteEntityStoreOperations
             .AsAsyncEnumerable();
 
         await foreach (var revisionId in revisionIds.WithCancellation(cancellationToken))
-        {
             yield return identity.CreateEntityRevision(id, revisionId);
-        }
     }
 
     public static async IAsyncEnumerable<EntityModel> GetReferrersAsync(
@@ -126,10 +109,7 @@ internal static class SqliteEntityStoreOperations
                 referrer.RevisionId,
                 cancellationToken);
 
-            if (entity is not null)
-            {
-                yield return entity;
-            }
+            if (entity is not null) yield return entity;
         }
     }
 
@@ -139,7 +119,7 @@ internal static class SqliteEntityStoreOperations
         EntityModel entity,
         CancellationToken cancellationToken)
     {
-        await PutCoreAsync(context, metadata, entity, expectedRevision: null, cancellationToken);
+        await PutCoreAsync(context, metadata, entity, null, cancellationToken);
     }
 
     public static async ValueTask<bool> TryPutAsync(
@@ -158,7 +138,7 @@ internal static class SqliteEntityStoreOperations
         EntityId id,
         CancellationToken cancellationToken)
     {
-        await DeleteCoreAsync(context, metadata, id, expectedRevision: null, cancellationToken);
+        await DeleteCoreAsync(context, metadata, id, null, cancellationToken);
     }
 
     public static async ValueTask<bool> TryDeleteAsync(
@@ -181,10 +161,7 @@ internal static class SqliteEntityStoreOperations
             .AsNoTracking()
             .AnyAsync(x => x.RevisionId == revisionId && x.EntityId == id.Id, cancellationToken);
 
-        if (!contentExists)
-        {
-            return null;
-        }
+        if (!contentExists) return null;
 
         var refs = await context.EntityRevisionRefs
             .AsNoTracking()
@@ -214,12 +191,8 @@ internal static class SqliteEntityStoreOperations
         var identity = new SqliteStoreIdentity(metadata.EntityStoreId, checked((ulong)metadata.EpochId));
 
         if (expectedRevision is not null)
-        {
             if (head is null || !identity.Matches(entity.Id, expectedRevision.Value, head.CurrentRevisionId))
-            {
                 return false;
-            }
-        }
 
         var revisionId = AllocateRevisionId(metadata);
         var revision = new EntityContentRevisionRow
@@ -229,7 +202,6 @@ internal static class SqliteEntityStoreOperations
         };
 
         for (var index = 0; index < entity.Refs.Length; index++)
-        {
             revision.Refs.Add(new EntityRevisionRefRow
             {
                 RevisionId = revisionId,
@@ -237,17 +209,14 @@ internal static class SqliteEntityStoreOperations
                 TargetEntityId = entity.Refs[index].Target.Id,
                 Kind = entity.Refs[index].Kind
             });
-        }
 
         for (var index = 0; index < entity.BlobRefs.Length; index++)
-        {
             revision.BlobRefs.Add(new EntityRevisionBlobRefRow
             {
                 RevisionId = revisionId,
                 Ordinal = index,
                 BlobId = entity.BlobRefs[index]
             });
-        }
 
         context.EntityContentRevisions.Add(revision);
 
@@ -283,12 +252,8 @@ internal static class SqliteEntityStoreOperations
         var identity = new SqliteStoreIdentity(metadata.EntityStoreId, checked((ulong)metadata.EpochId));
 
         if (expectedRevision is not null)
-        {
             if (head is null || !identity.Matches(id, expectedRevision.Value, head.CurrentRevisionId))
-            {
                 return false;
-            }
-        }
 
         var revisionId = AllocateRevisionId(metadata);
 
