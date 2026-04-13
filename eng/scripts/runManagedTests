@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using Kawayi.Wakaze.IO;
 using Kawayi.Wakaze.Process;
 
-const int MaxConcurrentProcesses = 3;
+const int MaxConcurrentProcesses = 4;
 
 return await RunAsync(args);
 
